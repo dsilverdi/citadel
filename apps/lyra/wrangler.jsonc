@@ -1,0 +1,91 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "citadel-lyra-local",
+  "main": "workers/app.ts",
+  "compatibility_date": "2025-10-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": { "binding": "ASSETS", "directory": "build/client", "run_worker_first": true },
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "vars": { "APP_ENV": "local", "LOCAL_AUTH_BYPASS": "true", "MOCK_AI": "true" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lyra-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [{ "binding": "REPORTS", "bucket_name": "lyra-local-reports" }],
+  "durable_objects": {
+    "bindings": [{ "name": "ConversationAgent", "class_name": "ConversationAgent" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ConversationAgent"] }],
+  "workflows": [
+    { "binding": "RESEARCH", "name": "lyra-local-research", "class_name": "ResearchWorkflow" },
+  ],
+  "env": {
+    "staging": {
+      "name": "citadel-lyra-staging",
+      "vars": {
+        "APP_ENV": "staging",
+        "ACCESS_TEAM_DOMAIN": "",
+        "ACCESS_AUD": "",
+        "ALLOWED_EMAIL": "",
+        "AI_GATEWAY_ACCOUNT_ID": "",
+        "AI_GATEWAY_ID": "",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "lyra-staging",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "r2_buckets": [{ "binding": "REPORTS", "bucket_name": "lyra-staging-reports" }],
+      "durable_objects": {
+        "bindings": [{ "name": "ConversationAgent", "class_name": "ConversationAgent" }],
+      },
+      "workflows": [
+        {
+          "binding": "RESEARCH",
+          "name": "lyra-staging-research",
+          "class_name": "ResearchWorkflow",
+        },
+      ],
+    },
+    "production": {
+      "name": "citadel-lyra",
+      "vars": {
+        "APP_ENV": "production",
+        "ACCESS_TEAM_DOMAIN": "",
+        "ACCESS_AUD": "",
+        "ALLOWED_EMAIL": "",
+        "AI_GATEWAY_ACCOUNT_ID": "",
+        "AI_GATEWAY_ID": "",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "lyra-production",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "r2_buckets": [{ "binding": "REPORTS", "bucket_name": "lyra-production-reports" }],
+      "durable_objects": {
+        "bindings": [{ "name": "ConversationAgent", "class_name": "ConversationAgent" }],
+      },
+      "workflows": [
+        {
+          "binding": "RESEARCH",
+          "name": "lyra-production-research",
+          "class_name": "ResearchWorkflow",
+        },
+      ],
+    },
+  },
+}

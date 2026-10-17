@@ -1,0 +1,47 @@
+{
+  "name": "@citadel/lyra",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "react-router dev --host 127.0.0.1",
+    "build": "react-router build",
+    "typecheck": "react-router typegen && tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "db:migrate": "wrangler d1 migrations apply lyra-local --local --config wrangler.jsonc",
+    "db:migrate:staging": "wrangler d1 migrations apply lyra-staging --env staging --remote --config wrangler.jsonc",
+    "db:migrate:production": "wrangler d1 migrations apply lyra-production --env production --remote --config wrangler.jsonc",
+    "deploy:staging": "node ../../scripts/deploy.mjs staging",
+    "deploy:production": "node ../../scripts/deploy.mjs production"
+  },
+  "dependencies": {
+    "@citadel/ai": "workspace:*",
+    "@citadel/auth": "workspace:*",
+    "@citadel/ui": "workspace:*",
+    "@react-router/node": "^7.9.4",
+    "agents": "^0.2.20",
+    "drizzle-orm": "^0.44.6",
+    "lucide-react": "^0.545.0",
+    "openai": "^6.7.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router": "^7.9.4",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@citadel/config": "workspace:*",
+    "@cloudflare/vite-plugin": "^1.13.0",
+    "@cloudflare/workers-types": "^4.20251014.0",
+    "@playwright/test": "^1.56.0",
+    "@react-router/dev": "^7.9.4",
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "tailwindcss": "^4.1.14",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.10",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.45.0"
+  }
+}

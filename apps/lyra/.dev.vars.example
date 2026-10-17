@@ -1,0 +1,13 @@
+# Copy to .dev.vars to use live OpenAI instead of deterministic local sample responses.
+# Override MOCK_AI here; deployed environments never enable mock mode.
+MOCK_AI="false"
+OPENAI_API_KEY=""
+
+# Optional locally; required in staging and production.
+AI_GATEWAY_ACCOUNT_ID=""
+AI_GATEWAY_ID=""
+AI_GATEWAY_TOKEN=""
+
+# Optional JSON mapping model IDs to current rates. Leave unset to show token usage
+# with "Cost estimate unavailable" instead of inventing a price.
+# MODEL_PRICING_JSON='{"your-model":{"inputPerMillion":0,"outputPerMillion":0,"webSearchPerThousand":0}}'

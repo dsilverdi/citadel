@@ -1,0 +1,8 @@
+{
+  "name": "@citadel/config",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./typescript": "./tsconfig.json"
+  }
+}
