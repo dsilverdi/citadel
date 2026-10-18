@@ -36,3 +36,15 @@ Formatting, ESLint, Lyra and shared UI TypeScript checks, all 21 unit tests, all
 Replaced the shared/public logo and six favicon binaries with the supplied Lyra portrait and `favicon_lyra` set. Binary comparisons confirmed the logo and icons match their supplied originals. Preserved the app manifest's stable identity and light theme; icon URLs use version 3 and the offline cache is v3. The supplied welcome artwork is preserved in shared assets and compressed to a 393 KB WebP for display at 6% opacity only behind an empty conversation.
 
 Formatting, ESLint, Lyra TypeScript, all 21 unit tests, and all 10 desktop/mobile browser tests passed. Phone and desktop welcome screenshots were visually checked. The production client/Worker build passed. Commit `fe22f63` was published as Worker version `89dd84c0-efad-41c9-ae33-8ba77a80d621`. No migrations were pending; both runtime secrets remain configured. The production URL returned HTTP 302 to the configured Cloudflare Access login. Authenticated production asset delivery and existing home-screen icon updates remain a signed-in device check. No live OpenAI calls were made.
+
+## Full welcome background — 2026-10-18
+
+Moved welcome artwork to the full initial-page background at 10% opacity, covering the header, navigation, and bottom spacing. The composer remains opaque, and conversations with messages retain their plain background. A phone-browser check confirmed artwork bounds of 390 × 844 pixels and computed opacity 0.1; the screenshot was visually reviewed.
+
+Formatting, ESLint, TypeScript, 21 unit tests, 10 desktop/mobile browser tests, and the production build passed. Required secrets were present and D1 had no pending migrations. Published as Worker version `b335f948-8916-4127-b72d-ab898b84ed32`. The live URL returned HTTP 302 to the expected Cloudflare Access login. Signed-in production appearance remains a device check. This release includes working-tree UI changes.
+
+## Welcome opacity and solid navigation — 2026-10-18
+
+Increased the welcome artwork to 20% opacity across the initial page. Desktop sidebar uses an opaque neutral surface; the mobile drawer remains opaque white. The composer is also opaque. Browser inspection confirmed opacity 0.2, sidebar background `rgb(240, 241, 239)`, and drawer background `rgb(255, 255, 255)`.
+
+Formatting, ESLint, TypeScript, 21 unit tests, 10 desktop/mobile browser tests, and production build passed. Both runtime secrets remain configured and no D1 migrations were pending. Deployed as Worker version `460b5702-cb1b-420d-8161-3ca7ca90b54b`; the live URL returned HTTP 302 to the configured Access login. Authenticated production appearance remains a signed-in device check.

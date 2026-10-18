@@ -380,7 +380,17 @@ export function ChatApp({ initial }: { initial: Initial }) {
   );
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
+    <div className="relative isolate flex h-dvh overflow-hidden bg-background pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
+      {!current?.messages.length && (
+        <img
+          src="/welcome-artwork.webp"
+          alt=""
+          aria-hidden="true"
+          width={1024}
+          height={1536}
+          className="pointer-events-none absolute inset-0 -z-10 h-full w-full select-none object-cover object-[center_35%] opacity-20"
+        />
+      )}
       {selected && (
         <ConversationStream
           key={selected}
@@ -393,7 +403,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
       )}
       <aside
         className={cn(
-          "hidden shrink-0 bg-muted/60 md:block",
+          "hidden shrink-0 bg-muted md:block",
           sidebarOpen ? "w-0 overflow-hidden border-0" : "w-[272px]",
         )}
       >
@@ -483,15 +493,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
           >
             {!current?.messages.length ? (
-              <div className="relative isolate flex min-h-full flex-col items-center justify-center overflow-hidden px-6 pb-16 text-center">
-                <img
-                  src="/welcome-artwork.webp"
-                  alt=""
-                  aria-hidden="true"
-                  width={1024}
-                  height={1536}
-                  className="pointer-events-none absolute inset-0 -z-10 h-full w-full select-none object-cover object-[center_35%] opacity-[0.06]"
-                />
+              <div className="flex min-h-full flex-col items-center justify-center px-6 pb-16 text-center">
                 <h1 className="max-w-[760px] text-[clamp(1.9rem,4vw,2.75rem)] font-normal leading-tight tracking-[-0.045em]">
                   What would you like to know?
                 </h1>
@@ -651,7 +653,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
                   event.preventDefault();
                   void send();
                 }}
-                className="rounded-[28px] bg-secondary/70 p-3 transition-colors focus-within:bg-secondary sm:p-4"
+                className="rounded-[28px] bg-secondary p-3 sm:p-4"
               >
                 <label className="sr-only" htmlFor="message">
                   Message Lyra
