@@ -1,7 +1,7 @@
 /* Only public branding and a generic offline page may enter this cache.
  * Authenticated documents, API responses, reports and mutations stay network-only.
  * Bump the version when changing offline.html or the cached logo. */
-const CACHE_NAME = "lyra-pwa-v2";
+const CACHE_NAME = "lyra-pwa-v3";
 const OFFLINE_URL = "/offline.html";
 const OFFLINE_ASSETS = [OFFLINE_URL, "/logo.png"];
 

@@ -67,12 +67,12 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
 function LyraMark({ className }: { className?: string }) {
   return (
     <img
-      src="/logo.png"
+      src="/logo.png?v=3"
       width={32}
       height={32}
       alt=""
       aria-hidden="true"
-      className={cn("size-8 object-contain", className)}
+      className={cn("size-8 rounded-full object-cover", className)}
     />
   );
 }
@@ -483,8 +483,16 @@ export function ChatApp({ initial }: { initial: Initial }) {
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
           >
             {!current?.messages.length ? (
-              <div className="mx-auto flex min-h-full max-w-[760px] flex-col items-center justify-center px-6 pb-16 text-center">
-                <h1 className="text-[clamp(1.9rem,4vw,2.75rem)] font-normal leading-tight tracking-[-0.045em]">
+              <div className="relative isolate flex min-h-full flex-col items-center justify-center overflow-hidden px-6 pb-16 text-center">
+                <img
+                  src="/welcome-artwork.webp"
+                  alt=""
+                  aria-hidden="true"
+                  width={1024}
+                  height={1536}
+                  className="pointer-events-none absolute inset-0 -z-10 h-full w-full select-none object-cover object-[center_35%] opacity-[0.06]"
+                />
+                <h1 className="max-w-[760px] text-[clamp(1.9rem,4vw,2.75rem)] font-normal leading-tight tracking-[-0.045em]">
                   What would you like to know?
                 </h1>
               </div>

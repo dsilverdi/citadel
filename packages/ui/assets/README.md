@@ -1,5 +1,7 @@
-# Citadel brand assets
+# Brand assets
 
-`logo.png` and the files in `favicons/` are the original assets supplied by the owner. Preserve their geometry and cyan coloring. Each app copies these into its public directory; its web manifest may customize the app name, start URL, and theme colors.
+`logo.png` is the owner-supplied Lyra portrait (`IMG_20261018_113422.png`). `favicons/` contains the supplied `favicon_lyra` set. Preserve the original artwork and icon files; each app copies the relevant assets into its public directory and customizes its web manifest identity and theme.
 
-Lyra serves its logo at `/logo.png` and the favicon set at the public root. The transparent PNG is displayed with `object-fit: contain` so its aspect ratio stays intact.
+`welcome-artwork.png` is the original owner-supplied background (`IMG_20261018_113158.png`). Lyra serves a compressed WebP derivative at `/welcome-artwork.webp`, displayed at 6% opacity only in the empty conversation state. It is decorative and does not appear behind chat messages.
+
+Lyra displays its portrait with a circular crop. Versioned icon URLs and the offline cache version ensure the replacement branding can refresh on installed clients; the manifest ID remains stable.
