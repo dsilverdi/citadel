@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deploy Citadel"
+  short_description: "Deploy Citadel apps to Cloudflare and verify them"
+  default_prompt: "Use $citadel-deploy to validate and deploy Lyra to production, then verify the protected URL."

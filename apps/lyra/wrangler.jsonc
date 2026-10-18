@@ -58,20 +58,21 @@
       ],
     },
     "production": {
-      "name": "citadel-lyra",
+      "name": "lyra",
+      "workers_dev": true,
       "vars": {
         "APP_ENV": "production",
-        "ACCESS_TEAM_DOMAIN": "",
-        "ACCESS_AUD": "",
-        "ALLOWED_EMAIL": "",
-        "AI_GATEWAY_ACCOUNT_ID": "",
-        "AI_GATEWAY_ID": "",
+        "ACCESS_TEAM_DOMAIN": "dsilverdi.cloudflareaccess.com",
+        "ACCESS_AUD": "d3aa006b39496af3da114a9a4b1a6bd4f1cdaa2268dfc2fd15eaa230224addb1",
+        "ALLOWED_EMAIL": "dsilverdi@gmail.com",
+        "AI_GATEWAY_ACCOUNT_ID": "3b1a88ed9e2d5d5c1012dfd7ea934e6d",
+        "AI_GATEWAY_ID": "lyra-production",
       },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "lyra-production",
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "cafb5347-141e-449d-b727-aab708cd3b57",
           "migrations_dir": "migrations",
         },
       ],

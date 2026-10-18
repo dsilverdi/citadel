@@ -36,6 +36,8 @@ pnpm test:e2e    # desktop + mobile browser tests with local Cloudflare emulatio
 
 See [architecture](docs/architecture.md), [deployment](docs/deployment.md), and [adding a tool](docs/adding-a-tool.md).
 
+Codex deployment sessions follow the versioned [Citadel deployment skill](skills/citadel-deploy/SKILL.md), discoverable through `AGENTS.md`. Invoke it with `$citadel-deploy` when installed in your Codex skills directory.
+
 ## Install on your phone
 
 Lyra is an installable PWA. After HTTPS deployment, use **Install Lyra** in the navigation drawer, or Safari's **Share → Add to Home Screen** on iPhone/iPad. Launch it from its icon in its own window. Chat and research need an internet connection; a generic offline screen helps you reconnect. See [phone installation and offline behavior](docs/pwa.md).

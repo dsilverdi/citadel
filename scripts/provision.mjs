@@ -50,6 +50,6 @@ if (!process.argv.includes("--apply")) {
     stdio: "inherit",
   });
   console.log(
-    "Resources created. Configure Access, AI Gateway, and custom domains before deploying. See docs/deployment.md.",
+    "Resources created. Configure Access, AI Gateway, and the deployment hostname before deploying. See docs/deployment.md.",
   );
 }

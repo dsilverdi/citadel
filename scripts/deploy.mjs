@@ -12,7 +12,7 @@ const parsed = ts.parseConfigFileTextToJson(configPath, readFileSync(configPath,
 if (parsed.error) throw new Error("Invalid Wrangler JSONC.");
 const target = parsed.config.env[environment];
 if (
-  !target.routes?.some((route) => route.custom_domain) ||
+  !(target.workers_dev === true || target.routes?.some((route) => route.custom_domain)) ||
   target.d1_databases[0].database_id === "00000000-0000-0000-0000-000000000000" ||
   [
     "ACCESS_TEAM_DOMAIN",
@@ -23,7 +23,7 @@ if (
   ].some((key) => !target.vars[key])
 ) {
   throw new Error(
-    "Configure the database, Access, AI Gateway, and custom domain before deployment. See docs/deployment.md.",
+    "Configure the database, Access, AI Gateway, and a workers.dev or custom hostname before deployment. See docs/deployment.md.",
   );
 }
 for (const args of [

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import type { Snapshot } from "../../server/contracts";
 
 test("research requires approval, preserves settings, and restores after refresh", async ({
   page,
@@ -19,23 +20,25 @@ test("research requires approval, preserves settings, and restores after refresh
   const id = url.searchParams.get("c");
   expect(id).toBeTruthy();
   const before = await page.evaluate(
-    async (conversationId) => (await fetch(`/api/conversations/${conversationId}`)).json(),
+    async (conversationId): Promise<Snapshot> =>
+      (await fetch(`/api/conversations/${conversationId}`)).json() as Promise<Snapshot>,
     id,
   );
   expect(before.runs).toHaveLength(1);
-  expect(before.runs[0].settings).toEqual({ model: "gpt-6-astra", effort: "high" });
-  expect(before.runs[0].mode).toBe("plan");
+  expect(before.runs[0]?.settings).toEqual({ model: "gpt-6-astra", effort: "high" });
+  expect(before.runs[0]?.mode).toBe("plan");
   await page.reload();
   await page.getByRole("button", { name: "Approve & research" }).click();
   await expect(page.getByRole("link", { name: "Download report" })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "Research findings" })).toBeVisible();
   const after = await page.evaluate(
-    async (conversationId) => (await fetch(`/api/conversations/${conversationId}`)).json(),
+    async (conversationId): Promise<Snapshot> =>
+      (await fetch(`/api/conversations/${conversationId}`)).json() as Promise<Snapshot>,
     id,
   );
-  expect(after.runs.filter((run: { mode: string }) => run.mode === "research")).toHaveLength(1);
-  expect(after.runs[1].settings).toEqual({ model: "gpt-6-astra", effort: "high" });
+  expect(after.runs.filter((run) => run.mode === "research")).toHaveLength(1);
+  expect(after.runs[1]?.settings).toEqual({ model: "gpt-6-astra", effort: "high" });
   await page.getByRole("button", { name: "View sources" }).click();
   await expect(page.getByRole("link", { name: /Cloudflare Workers documentation/ })).toBeVisible();
   await page.getByRole("button", { name: "Close panel" }).click();
@@ -110,11 +113,12 @@ test("stops research and retains completed evidence", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Partial research" })).toBeVisible();
   const id = new URL(page.url()).searchParams.get("c");
   const result = await page.evaluate(
-    async (conversationId) => (await fetch(`/api/conversations/${conversationId}`)).json(),
+    async (conversationId): Promise<Snapshot> =>
+      (await fetch(`/api/conversations/${conversationId}`)).json() as Promise<Snapshot>,
     id,
   );
-  expect(result.runs.at(-1).status).toBe("cancelled");
-  expect(result.messages.at(-1).sources.length).toBeGreaterThan(0);
+  expect(result.runs.at(-1)?.status).toBe("cancelled");
+  expect(result.messages.at(-1)?.sources.length).toBeGreaterThan(0);
   await page.reload();
   await expect(page.getByRole("heading", { name: "Partial research" })).toBeVisible();
 });

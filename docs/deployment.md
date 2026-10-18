@@ -10,7 +10,7 @@ Install dependencies, run `pnpm --filter @citadel/lyra db:migrate`, then `pnpm d
 2. Preview resource creation with `node scripts/provision.mjs staging`. Add `--apply` to create D1 and R2 and save the database ID. Resource names and bindings are separate per environment. If provisioning partially fails, finish the remaining commands manually; do not recreate an existing database.
 3. Create an AI Gateway for the environment. Configure it to avoid request/response body logging and caching. Set `AI_GATEWAY_ACCOUNT_ID` and `AI_GATEWAY_ID` under the environment's `vars` in `apps/lyra/wrangler.jsonc`.
 4. Create a Cloudflare Access self-hosted application for the chosen hostname, with an allow policy restricted to your email. Set `ACCESS_TEAM_DOMAIN` (for example `your-team.cloudflareaccess.com`, without a scheme), `ACCESS_AUD`, and `ALLOWED_EMAIL` in the same environment's vars. Worker JWT verification independently enforces issuer, audience, signature, expiry, and email.
-5. Add `"routes": [{"pattern": "lyra-staging.example.com", "custom_domain": true}]` to the staging configuration. Use `lyra.example.com` for production. Both `workers_dev` and preview URLs are disabled. The Worker authenticates API, SSR, asset, and Agent requests before routing. Websocket paths also verify conversation ownership and browser origin.
+5. Production targets **`lyra.dsilverdi.workers.dev`**: the production Worker is named `lyra` with `workers_dev: true`. Confirm the selected Cloudflare account's Workers subdomain is `dsilverdi`. Configure a Cloudflare Access self-hosted application for this exact hostname with an Allow → Emails policy for **`dsilverdi@gmail.com`**, then copy its team domain and application audience into the production vars. Access protection and the Worker's JWT checks remain required. Preview URLs stay disabled. Staging still requires its own hostname, for example `"routes": [{"pattern": "lyra-staging.example.com", "custom_domain": true}]`. The Worker authenticates API, SSR, asset, and Agent requests before routing; websocket paths also verify conversation ownership and browser origin.
 6. Store credentials using these commands. Never put secrets in the committed vars object.
 
    ```bash
@@ -24,6 +24,29 @@ Install dependencies, run `pnpm --filter @citadel/lyra db:migrate`, then `pnpm d
 Deployment scripts select `CLOUDFLARE_ENV` at build time and deploy the resulting flattened configuration. Do not build the local configuration and then pass `--env` only to deployment; Cloudflare's Vite integration selects bindings during the build.
 
 Install dependencies and commit `pnpm-lock.yaml` before a release. CI uses the frozen lockfile when present; its bootstrap path resolves the manifests when the initial lockfile has not yet been generated. Deployment is explicit; CI does not publish an app or provision billable resources automatically.
+
+## Automatic production deployments from master
+
+After provisioning, configuring Access/secrets, and verifying the first deployment manually, connect the existing `lyra` Worker to GitHub through **Settings → Build** in Cloudflare. Use Cloudflare Workers Builds with these settings:
+
+| Setting                                | Value                                                                                                |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Repository                             | `dsilverdi/citadel`                                                                                  |
+| Production branch                      | `master`                                                                                             |
+| Root directory                         | Repository root (`/`)                                                                                |
+| Build command                          | `pnpm install --frozen-lockfile && pnpm check`                                                       |
+| Deploy command                         | `pnpm --filter @citadel/lyra db:migrate:production && pnpm --filter @citadel/lyra deploy:production` |
+| Non-production branch / preview builds | Disabled initially                                                                                   |
+
+The repository root is needed for shared workspace packages and the lockfile. The deployment script changes into Lyra's directory and selects the production Cloudflare environment before building. Its production build runs after validation; the default local build produced by `pnpm check` is never deployed by this script.
+
+Commit the generated lockfile and actual non-secret environment configuration before connecting Builds. Use Node/pnpm versions matching `.node-version` and the root `packageManager` field. Ensure the Builds API token has **D1 edit** in addition to the Worker deployment permissions, because the deploy command applies database migrations. The OpenAI key and authenticated AI Gateway token are **Worker runtime secrets**, not build variables; retain them on the production Worker.
+
+Changes to `master` now run validation, apply pending production migrations, and deploy Lyra. A failed build stops deployment; a successful migration is not rolled back if deployment later fails, so keep migrations backward compatible. GitHub Actions separately checks `master` and pull requests, but Workers Builds does not wait for that separate workflow: the build command runs its own checks. Run the Playwright suite against staging before merging production changes, or require it through branch protection.
+
+For future apps, connect each Worker to the same monorepo with its own commands and build watch paths. Include the app directory, shared packages, root workspace/lockfile/configuration, and deployment scripts in its watch paths. Do not enable preview builds against production bindings; use the separate staging environment first.
+
+References: [Workers Builds settings](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [monorepos and environments](https://developers.cloudflare.com/workers/ci-cd/builds/advanced-setups/), [Vite environment selection](https://developers.cloudflare.com/workers/vite-plugin/reference/cloudflare-environments/).
 
 ## Monitoring and recovery
 

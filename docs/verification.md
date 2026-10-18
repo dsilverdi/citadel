@@ -1,18 +1,17 @@
 # Verification
 
-Initial implementation checks on 2026-10-17:
+Checked on 2026-10-17 after installing the repository's declared dependencies, using Node 24.22.0:
 
-- Eleven unit tests passed across model/plan contracts, citation normalization, cost estimation, provider response parsing, and SQLite migration invariants.
-- ESLint passed for the repository, with zero warnings.
-- TypeScript syntax transpilation passed for all application and package modules. This is not a full type check.
-- Formatting was applied and checked with Prettier.
-- The supplied logo and six binary favicon files were verified byte for byte against the originals. Web manifest icon paths were checked.
+- Formatting and ESLint passed with zero lint warnings.
+- Full TypeScript checks passed for auth, AI, UI, and Lyra packages, including the Playwright test sources.
+- React Router route type generation passed.
+- All 21 unit tests passed across contracts, citations, response parsing, authentication boundaries, database constraints, and PWA offline behavior.
+- The production client and Cloudflare Worker SSR builds passed. Vite explicitly writes to `build/client` and `build/server`, matching React Router's manifest paths and Wrangler's asset binding.
+- The supplied logo and six binary favicon files were verified byte for byte against the originals; manifest icon paths and sizes are covered by tests.
 
-PWA follow-up: all 18 tests pass using the same cached tooling, including seven new checks for standalone manifest/icons, offline navigation, authentication error handling, login redirect rejection, cache version cleanup, and exclusion of private API/report/mutation traffic. Install controls and standalone-window behavior have Playwright scenarios; browser execution and installation on real phones remain unverified in this sandbox. See [PWA verification steps](pwa.md).
+The installed build emits upstream Zod annotation notices and React Router future-flag warnings; these do not fail the build. Earlier checks used temporary cached tooling while dependencies were unavailable; the results above supersede those checks.
 
-The environment had Node 24.22.0 but blocked network access, local server sockets, and Chromium launch. Dependencies could not be installed. The unit tests ran from an isolated temporary copy using cached Vitest 4.1.10 and Zod 4.4.3; static checks used cached ESLint 10.8.0, Prettier 3.9.5, and TypeScript 6.0.3. These results do not replace checking the repository's declared toolchain after installation.
-
-Full type checks, the production Workers build, JWT tests, local Cloudflare integration, and desktop/mobile Playwright scenarios remain unverified here. No Cloudflare resources were created and no live OpenAI requests were sent.
+Local Cloudflare integration, desktop/mobile Playwright execution, and installation on real phones remain unverified because the sandbox blocks local server sockets and Chromium launch. See [PWA verification steps](pwa.md). Production D1 (`lyra-production`), private R2 (`lyra-production-reports`), AI Gateway (`lyra-production`), and an email-restricted Access application have been provisioned. No live OpenAI requests were sent. On 2026-10-18, migration `0001_initial.sql` was applied remotely and Worker version `18729eb3-3676-4f3e-9fcc-dc64f54c44f5` was published at https://lyra.dsilverdi.workers.dev, including its research Workflow and five-minute cron. An unauthenticated HTTPS request returned a 302 redirect to Cloudflare Access with the configured application audience. Both `OPENAI_API_KEY` and `AI_GATEWAY_TOKEN` were confirmed present as Worker secrets without reading their values. Authenticated UI and live AI requests remain unverified.
 
 Run the declared toolchain before release:
 
