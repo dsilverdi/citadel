@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import { InstallApp } from "./install-app";
+import { ResearchClarificationCard } from "./research-clarification";
 import {
   ArrowDown,
   ArrowUp,
@@ -23,6 +24,7 @@ import {
   SquarePen,
   SlidersHorizontal,
   X,
+  Trash2,
 } from "lucide-react";
 import { Button, Markdown, Sheet, SheetContent, SheetTrigger, cn } from "@citadel/ui";
 import { defaultSettings, models, type Effort, type ModelSettings } from "@citadel/ai/models";
@@ -44,17 +46,18 @@ interface Initial {
 }
 const busy = (run: Run) => ["queued", "running", "uncertain"].includes(run.status);
 
-async function request<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(
-    path,
-    body === undefined
-      ? { cache: "no-store" }
-      : {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
-        },
-  );
+async function request<T>(
+  path: string,
+  body?: unknown,
+  method = body === undefined ? "GET" : "POST",
+): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    cache: "no-store",
+    ...(body === undefined
+      ? {}
+      : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+  });
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({
       error: "Your session may have expired. Reload the page to reconnect.",
@@ -122,6 +125,9 @@ export function ChatApp({ initial }: { initial: Initial }) {
   const [mobileNav, setMobileNav] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [live, setLive] = useState<{ runId: string; text: string } | null>(null);
   const selectedRef = useRef(selected);
@@ -136,6 +142,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
     conversationId: string;
   } | null>(null);
   const pendingApproval = useRef(new Map<string, string>());
+  const pendingScopeAnswers = useRef(new Map<string, { id: string; fingerprint: string }>());
   selectedRef.current = selected;
 
   const refresh = useCallback(async () => {
@@ -212,6 +219,9 @@ export function ChatApp({ initial }: { initial: Initial }) {
     history.pushState(null, "", id ? `/?c=${id}` : "/");
   }
   const active = current?.runs.findLast(busy);
+  const currentClarification = current?.clarifications?.findLast(
+    (item) => item.status === "pending",
+  );
   const currentPlan = current?.plans.findLast((plan) => plan.status === "pending");
   const allSources = current?.messages.flatMap((message) => message.sources) || [];
   const sources = [...new Map(allSources.map((source) => [source.url, source])).values()];
@@ -287,6 +297,49 @@ export function ChatApp({ initial }: { initial: Initial }) {
       setError(failure instanceof Error ? failure.message : "Unable to stop the run.");
     }
   }
+  async function answerScope(answers: Array<{ questionId: string; answer: string }>) {
+    if (!currentClarification || !selected || sending || active) return;
+    setSending(true);
+    const clarificationId = currentClarification.id;
+    const fingerprint = JSON.stringify(answers);
+    const previous = pendingScopeAnswers.current.get(clarificationId);
+    const id = previous?.fingerprint === fingerprint ? previous.id : crypto.randomUUID();
+    pendingScopeAnswers.current.set(clarificationId, { id, fingerprint });
+    try {
+      await request(`/api/conversations/${selected}/clarifications/${clarificationId}/answer`, {
+        id,
+        answers,
+      });
+      pendingScopeAnswers.current.delete(clarificationId);
+      setMode("research");
+      settingsDirty.current = false;
+      setAtBottom(true);
+      await refresh();
+    } finally {
+      setSending(false);
+    }
+  }
+  async function removeConversation() {
+    if (!deleteTarget || deleting) return;
+    const id = deleteTarget.id;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await request(`/api/conversations/${id}`, undefined, "DELETE");
+      setConversations((items) => items.filter((item) => item.id !== id));
+      if (selectedRef.current === id) {
+        selectConversation(null);
+        setDraft("");
+        pendingSubmission.current = null;
+        pendingApproval.current.clear();
+      }
+      setDeleteTarget(null);
+    } catch (failure) {
+      setDeleteError(failure instanceof Error ? failure.message : "Unable to delete this chat.");
+    } finally {
+      setDeleting(false);
+    }
+  }
   const nav = (
     <div className="flex h-full min-h-0 flex-col">
       <div className="hidden h-20 items-center px-6 md:flex">
@@ -344,19 +397,35 @@ export function ChatApp({ initial }: { initial: Initial }) {
               .includes(search === "\u0000" ? "" : search.toLowerCase()),
           )
           .map((conversation) => (
-            <button
+            <div
               key={conversation.id}
-              onClick={() => selectConversation(conversation.id)}
-              aria-current={selected === conversation.id ? "page" : undefined}
               className={cn(
-                "mb-1 flex w-full items-center gap-3 rounded-full px-4 py-3 text-left text-sm transition-colors",
-                selected === conversation.id
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                "group mb-1 flex items-center rounded-full transition-colors",
+                selected === conversation.id ? "bg-accent" : "hover:bg-secondary",
               )}
             >
-              <span className="truncate">{conversation.title}</span>
-            </button>
+              <button
+                onClick={() => selectConversation(conversation.id)}
+                aria-current={selected === conversation.id ? "page" : undefined}
+                className="min-w-0 flex-1 rounded-full px-4 py-3 text-left text-sm"
+              >
+                <span className="block truncate">{conversation.title}</span>
+              </button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mr-1 size-11 shrink-0 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                aria-label={`Delete ${conversation.title}`}
+                disabled={sending || deleting}
+                onClick={() => {
+                  setMobileNav(false);
+                  setDeleteError(null);
+                  setDeleteTarget(conversation);
+                }}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
           ))}
         {!conversations.length && (
           <p className="px-3 py-5 text-xs leading-relaxed text-muted-foreground/70">
@@ -551,6 +620,14 @@ export function ChatApp({ initial }: { initial: Initial }) {
                     </article>
                   );
                 })}
+                {currentClarification && (
+                  <ResearchClarificationCard
+                    key={currentClarification.id}
+                    clarification={currentClarification}
+                    disabled={sending || !!active}
+                    onSubmit={answerScope}
+                  />
+                )}
                 {currentPlan && (
                   <PlanCard
                     plan={currentPlan}
@@ -738,6 +815,48 @@ export function ChatApp({ initial }: { initial: Initial }) {
           </div>
         </main>
       </div>
+      <Sheet
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          title="Delete chat?"
+          description="This removes the chat, its messages, and saved reports. This cannot be undone."
+          className="mx-auto max-w-lg"
+          onEscapeKeyDown={(event) => {
+            if (deleting) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (deleting) event.preventDefault();
+          }}
+        >
+          <div className="space-y-5 p-6">
+            <p className="truncate text-sm font-medium">{deleteTarget?.title}</p>
+            {deleteError && (
+              <p role="alert" className="text-sm leading-6 text-muted-foreground">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" disabled={deleting} onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={deleting}
+                onClick={() => {
+                  void removeConversation();
+                }}
+              >
+                {deleting ? <LoaderCircle className="animate-spin" /> : <Trash2 />}
+                {deleting ? "Deleting…" : "Delete chat"}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
       <Sheet open={optionsOpen} onOpenChange={setOptionsOpen}>
         <SheetContent side="bottom" title="Chat options" className="mx-auto max-w-2xl">
           <div className="space-y-6 overflow-y-auto p-6">

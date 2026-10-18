@@ -34,6 +34,10 @@ pnpm check       # formatting, lint, types, unit tests, production build
 pnpm test:e2e    # desktop + mobile browser tests with local Cloudflare emulation
 ```
 
+Delete a saved chat using the trash button beside its title in the history, then confirm. On desktop, the button appears on hover or keyboard focus. Active requests must be stopped and settled first. Deletion removes the chat and its saved reports.
+
+Deep research asks up to three relevant scope questions when the brief needs clarification. Answer one at a time in the popup using a suggested option or your own text; recommendations are labeled and require your choice. Back preserves your answers, and closing the popup leaves an **Answer scope questions** card. Submitted preferences become part of the chat and inform the next plan. Research starts only after you approve that plan. A specific brief can proceed directly to a plan.
+
 See [architecture](docs/architecture.md), [deployment](docs/deployment.md), and [adding a tool](docs/adding-a-tool.md).
 
 Codex deployment sessions follow the versioned [Citadel deployment skill](skills/citadel-deploy/SKILL.md), discoverable through `AGENTS.md`. Invoke it with `$citadel-deploy` when installed in your Codex skills directory.

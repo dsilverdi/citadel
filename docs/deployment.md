@@ -61,3 +61,17 @@ References: [Workers Builds settings](https://developers.cloudflare.com/workers/
 ## Data and authentication
 
 OpenAI calls set `store=true` for durable retrieval, which uses provider-side retention. History and source records persist in D1; reports persist in private R2. There is no public report URL. Report downloads require the same authenticated owner as the conversation. Account-wide data deletion/retention automation is outside v1; manage these resources explicitly in Cloudflare and review OpenAI data settings.
+
+## Conversation deletion
+
+Apply `0002_conversation_deletions.sql` before deploying the deletion feature. The owner-only, same-origin `DELETE /api/conversations/:id` route atomically checks for active/unconfirmed requests, enqueues report cleanup, and deletes the conversation. Existing foreign-key cascades remove its messages, runs, plans, steps, and events. A concurrent send either blocks deletion with an active run or fails its parent foreign-key constraint; deleted data cannot be recreated by that submission.
+
+R2 reports are cleaned from the exact `reports/<conversation-id>/` prefix immediately after the response. The existing five-minute cron retries pending `conversation_deletions` jobs if storage fails or background work is interrupted. This queue contains only the deleted conversation ID and timestamp; completed jobs are removed. Do not truncate it while cleanup is pending. An unresolved provider submission or pending cancellation blocks deletion until reconciled.
+
+Deleting a chat removes its application history and private R2 exports. Provider-side OpenAI response retention, existing Cloudflare Workflow execution history, and database backups follow their separate retention policies.
+
+## Research scope questions
+
+Apply `0003_research_clarifications.sql` before publishing the clarification feature (and `0002_conversation_deletions.sql` if not already applied). Pending questions and submitted answers persist in D1 and cascade with conversation deletion. The owner-only, same-origin `POST /api/conversations/:id/clarifications/:id/answer` route requires one answer per question, accepts custom text, rejects replaced questions, and uses a stable submission ID to avoid duplicate planning runs. Answers preserve the original model/effort and create another planning run, never an approved research run. Closing the popup preserves the pending questions; unsubmitted selections are held in the current page only.
+
+For a signed-in smoke test, submit a broad research brief, choose a recommendation and a custom answer, then confirm the resulting plan reflects those choices before approving research. Also verify that a sufficiently specific brief can proceed directly to a plan. Local demo mode uses a fixed clarification fixture for “Help me explore business ideas”; live question wording and relevance come from the selected model.

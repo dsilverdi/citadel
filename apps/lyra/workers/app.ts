@@ -11,6 +11,7 @@ import { cancelProviderResponses } from "../server/provider";
 import { progress, retainPartialResearch } from "../server/research";
 import { getRun } from "../server/repository";
 import { runs } from "../server/schema";
+import { cleanDeletedConversationReports } from "../server/delete-conversation";
 
 export { ConversationAgent } from "./conversation-agent";
 export { ResearchWorkflow } from "./research-workflow";
@@ -70,6 +71,7 @@ export default {
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(
       (async () => {
+        await cleanDeletedConversationReports(env);
         const db = database(env);
         const queued = await db
           .select()

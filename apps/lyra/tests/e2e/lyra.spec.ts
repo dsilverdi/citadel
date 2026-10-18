@@ -1,6 +1,122 @@
 import { test, expect } from "@playwright/test";
 import type { Snapshot } from "../../server/contracts";
 
+test("clarifies research intent with options and custom answers before plan approval", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "Message Lyra" }).fill("Help me explore business ideas");
+  await page.getByRole("button", { name: "Send message" }).click();
+  let dialog = page.getByRole("dialog", { name: "Shape your research", exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Approve & research" })).toHaveCount(0);
+  const conversationId = new URL(page.url()).searchParams.get("c")!;
+  await page.reload();
+  dialog = page.getByRole("dialog", { name: "Shape your research", exact: true });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Close panel" }).click();
+  await page.getByRole("button", { name: "Answer scope questions" }).click();
+  await dialog.getByRole("radio", { name: /Productivity/ }).check();
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await dialog.getByRole("radio", { name: "Write my own answer", exact: true }).check();
+  await dialog.getByRole("textbox", { name: "Your answer" }).fill("Launch a pilot by June 2027");
+  await dialog.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(dialog.getByRole("radio", { name: /Productivity/ })).toBeChecked();
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(dialog.getByRole("textbox", { name: "Your answer" })).toHaveValue(
+    "Launch a pilot by June 2027",
+  );
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await dialog.getByRole("radio", { name: /Small teams/ }).check();
+  const submitted = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      request.url().includes("/clarifications/") &&
+      request.url().endsWith("/answer"),
+  );
+  await dialog.getByRole("button", { name: "Create research plan" }).click();
+  const answerRequest = await submitted;
+  const payload = answerRequest.postDataJSON();
+  await expect(page.getByRole("button", { name: "Approve & research" })).toBeVisible();
+  const snapshot = (await (
+    await page.request.get(`/api/conversations/${conversationId}`)
+  ).json()) as Snapshot;
+  expect(snapshot.clarifications.at(-1)?.status).toBe("answered");
+  expect(snapshot.runs).toHaveLength(2);
+  expect(snapshot.runs.every((run) => run.mode === "plan")).toBe(true);
+  expect(snapshot.messages.at(-2)?.content).toContain("Launch a pilot by June 2027");
+  expect(snapshot.messages.at(-2)?.content).toContain("Productivity");
+  expect(snapshot.messages.at(-2)?.content).toContain("Small teams");
+  expect(snapshot.runs[1]?.settings).toEqual(snapshot.runs[0]?.settings);
+  const headers = { origin: new URL(page.url()).origin };
+  expect((await page.request.post(answerRequest.url(), { data: payload, headers })).status()).toBe(
+    200,
+  );
+  expect(
+    (
+      await page.request.post(answerRequest.url(), {
+        data: { ...payload, id: crypto.randomUUID() },
+        headers,
+      })
+    ).status(),
+  ).toBe(409);
+  expect(
+    (
+      await page.request.post(answerRequest.url(), {
+        data: { ...payload, id: crypto.randomUUID(), answers: [] },
+        headers,
+      })
+    ).status(),
+  ).toBe(400);
+});
+
+test("confirms deletion, removes history, and protects the delete endpoint", async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Chat options", exact: true }).click();
+  await page.getByRole("button", { name: "Chat Ask a question or talk something through" }).click();
+  const title = `Disposable chat ${crypto.randomUUID()}`;
+  await page.getByRole("textbox", { name: "Message Lyra" }).fill(title);
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(
+    page.getByText("This local session uses sample responses.", { exact: false }),
+  ).toBeVisible();
+  const id = new URL(page.url()).searchParams.get("c")!;
+  expect(
+    (
+      await page.request.delete(`/api/conversations/${id}`, {
+        headers: { origin: "https://another.example" },
+      })
+    ).status(),
+  ).toBe(403);
+  expect(
+    (
+      await page.request.delete(`/api/conversations/${crypto.randomUUID()}`, {
+        headers: { origin: new URL(page.url()).origin },
+      })
+    ).status(),
+  ).toBe(404);
+
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: `Delete ${title}`, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete chat?", exact: true });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect((await page.request.get(`/api/conversations/${id}`)).status()).toBe(200);
+
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: `Delete ${title}`, exact: true }).click();
+  await dialog.getByRole("button", { name: "Delete chat", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "What would you like to know?" })).toBeVisible();
+  expect((await page.request.get(`/api/conversations/${id}`)).status()).toBe(404);
+  await page.reload();
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await expect(page.getByRole("button", { name: `Delete ${title}`, exact: true })).toHaveCount(0);
+});
+
 test("research requires approval, preserves settings, and restores after refresh", async ({
   page,
 }) => {

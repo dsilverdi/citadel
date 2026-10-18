@@ -13,7 +13,7 @@ import {
   type Completion,
 } from "./provider";
 import { database, getRun, type RunRow } from "./repository";
-import { conversations, events, messages, plans, runs, steps } from "./schema";
+import { conversations, events, messages, plans, runs, steps, clarifications } from "./schema";
 import type { Env } from "./env";
 
 const instructions =
@@ -121,7 +121,7 @@ export async function executeRun(env: Env, runId: string, workflow: WorkflowStep
         run,
         "plan",
         {
-          instructions: `${instructions} Return a JSON object with kind (plan or clarification), title, summary, questions (1-6 research subquestions), clarifyingQuestions (0-3). Ask clarification only if essential. For a plan clarifyingQuestions must be empty; for clarification questions must be empty. Do not conduct research yet. If the user requests revisions, revise the previous plan in context.`,
+          instructions: `${instructions} Today is ${new Date(run.createdAt).toISOString().slice(0, 10)} (UTC). Interpret relative timelines from this date. Scope the user's intended research before planning. If important scope is missing, return kind=clarification with 1-3 targeted clarifyingQuestions about the user's goal, decision, sector, timeframe, audience/market, geography, or desired breadth/depth. Choose only questions that materially change this research; never use a fixed generic checklist or repeat details the user already provided. Each clarifying question has question, 2-4 relevant options with label and short description, and recommendedIndex (zero-based) marking your most useful starting option. Recommendations are suggestions, not user consent. Do not include Other/free-text options; the UI provides a custom answer. Set questions=[] for clarification. After the user supplies Research scope preferences, use those answers and the original question to produce kind=plan with 1-6 research subquestions, clarifyingQuestions=[], and a summary that states the agreed scope and depth. Ask another clarification only for a material contradiction, not merely a missing optional detail. A sufficiently specific original brief may go straight to a plan. If the user explicitly delegates scope decisions or declines more questions, state your assumptions in the plan instead of asking again. Return title and summary in both cases. Do not conduct research or invent preferences yet. Preserve explicit user constraints and revise plans when requested.`,
           input: context,
           json: true,
         },
@@ -133,11 +133,24 @@ export async function executeRun(env: Env, runId: string, workflow: WorkflowStep
       await workflow.do("save-plan", async () => {
         await assertRunning(env, run.id);
         if (plan.kind === "clarification") {
-          await saveAnswer(
-            env,
-            run,
-            `${plan.summary}\n\n${plan.clarifyingQuestions.map((question) => `- ${question}`).join("\n")}`,
-          );
+          await database(env)
+            .insert(clarifications)
+            .values({
+              id: run.id,
+              conversationId: run.conversationId,
+              runId: run.id,
+              summary: plan.summary,
+              questions: JSON.stringify(
+                plan.clarifyingQuestions.map((question, index) => ({
+                  ...question,
+                  id: `q${index + 1}`,
+                })),
+              ),
+              status: "pending",
+              createdAt: Date.now(),
+            })
+            .onConflictDoNothing();
+          await saveAnswer(env, run, plan.summary);
         } else {
           await database(env)
             .insert(plans)
@@ -272,7 +285,9 @@ export async function executeRun(env: Env, runId: string, workflow: WorkflowStep
         env,
         run,
         "completed",
-        run.mode === "plan" ? "Review the plan before research begins." : "Complete.",
+        run.mode === "plan"
+          ? "Review the scope questions or plan before research begins."
+          : "Complete.",
       );
     });
   } catch (error) {

@@ -6,6 +6,7 @@ import {
   type Conversation,
   type Message,
   type ResearchPlan,
+  type ResearchClarification,
   type Run,
   type Snapshot,
   type Source,
@@ -65,7 +66,7 @@ export function runView(env: Env, row: RunRow): Run {
 export async function snapshot(env: Env, id: string, owner: string): Promise<Snapshot> {
   const conversation = await ownedConversation(env, id, owner);
   const db = database(env);
-  const [messageRows, planRows, runRows, eventRows] = await Promise.all([
+  const [messageRows, planRows, runRows, eventRows, clarificationRows] = await Promise.all([
     db
       .select()
       .from(schema.messages)
@@ -91,6 +92,12 @@ export async function snapshot(env: Env, id: string, owner: string): Promise<Sna
       .orderBy(desc(schema.events.id))
       .limit(80)
       .all(),
+    db
+      .select()
+      .from(schema.clarifications)
+      .where(eq(schema.clarifications.conversationId, id))
+      .orderBy(schema.clarifications.createdAt)
+      .all(),
   ]);
   return {
     conversation: conversationView(conversation),
@@ -103,6 +110,13 @@ export async function snapshot(env: Env, id: string, owner: string): Promise<Sna
       ...row,
       questions: JSON.parse(row.questions) as string[],
       status: row.status as ResearchPlan["status"],
+    })),
+    clarifications: clarificationRows.map((row): ResearchClarification => ({
+      id: row.id,
+      conversationId: row.conversationId,
+      summary: row.summary,
+      questions: JSON.parse(row.questions) as ResearchClarification["questions"],
+      status: row.status as ResearchClarification["status"],
     })),
     runs: runRows.map((row) => runView(env, row)),
     events: eventRows.reverse(),

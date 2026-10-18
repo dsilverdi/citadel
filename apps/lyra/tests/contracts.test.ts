@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { defaultSettings, estimateCost, settingsSchema } from "@citadel/ai/models";
-import { planOutputSchema, submissionSchema } from "../server/contracts";
+import {
+  planOutputSchema,
+  submissionSchema,
+  scopeQuestionSchema,
+  clarificationAnswersSchema,
+  researchScopeInput,
+} from "../server/contracts";
 import { applyAnnotations, linkCitations, mergeSources } from "../server/citations";
 
 describe("model selection and plans", () => {
@@ -36,9 +42,69 @@ describe("model selection and plans", () => {
         ...base,
         kind: "clarification",
         questions: [],
-        clarifyingQuestions: ["Which region?"],
+        clarifyingQuestions: [
+          {
+            question: "Which region?",
+            options: [
+              { label: "Indonesia", description: "Focus on your local market." },
+              { label: "Global", description: "Compare markets internationally." },
+            ],
+            recommendedIndex: 0,
+          },
+        ],
       }).success,
     ).toBe(true);
+  });
+});
+describe("research scoping", () => {
+  const question = {
+    id: "q1",
+    question: "What is your goal?",
+    options: [
+      { label: "Choose a product", description: "Compare practical options." },
+      { label: "Understand the field", description: "Map concepts and evidence." },
+    ],
+    recommendedIndex: 0,
+  };
+  it("requires a valid recommendation and distinct useful choices", () => {
+    expect(scopeQuestionSchema.safeParse(question).success).toBe(true);
+    expect(scopeQuestionSchema.safeParse({ ...question, recommendedIndex: 3 }).success).toBe(false);
+    expect(
+      scopeQuestionSchema.safeParse({
+        ...question,
+        options: [question.options[0], question.options[0]],
+      }).success,
+    ).toBe(false);
+  });
+  it("accepts custom answers and turns them into explicit intent for the next plan", () => {
+    const body = clarificationAnswersSchema.parse({
+      id: crypto.randomUUID(),
+      answers: [{ questionId: "q1", answer: "  Evaluate tools for a nonprofit team  " }],
+    });
+    expect(researchScopeInput([question], body.answers)).toContain(
+      "What is your goal?\nAnswer: Evaluate tools for a nonprofit team",
+    );
+    expect(
+      clarificationAnswersSchema.safeParse({
+        id: crypto.randomUUID(),
+        answers: [{ questionId: "q1", answer: " " }],
+      }).success,
+    ).toBe(false);
+  });
+  it("rejects missing, duplicate, and invented question IDs", () => {
+    expect(() => researchScopeInput([question], [])).toThrow("Answer each scope question once");
+    expect(() =>
+      researchScopeInput([question], [{ questionId: "wrong", answer: "Test" }]),
+    ).toThrow();
+    expect(() =>
+      researchScopeInput(
+        [question],
+        [
+          { questionId: "q1", answer: "A" },
+          { questionId: "q1", answer: "B" },
+        ],
+      ),
+    ).toThrow();
   });
 });
 describe("citations", () => {

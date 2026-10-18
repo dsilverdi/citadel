@@ -8,6 +8,10 @@ export const conversations = sqliteTable("conversations", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+export const conversationDeletions = sqliteTable("conversation_deletions", {
+  conversationId: text("conversation_id").primaryKey(),
+  createdAt: integer("created_at").notNull(),
+});
 export const runs = sqliteTable("runs", {
   id: text("id").primaryKey(),
   conversationId: text("conversation_id")
@@ -48,6 +52,21 @@ export const plans = sqliteTable("plans", {
   title: text("title").notNull(),
   summary: text("summary").notNull(),
   questions: text("questions").notNull(),
+  status: text("status").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+export const clarifications = sqliteTable("research_clarifications", {
+  answerRunId: text("answer_run_id").references(() => runs.id),
+  id: text("id").primaryKey(),
+  conversationId: text("conversation_id")
+    .notNull()
+    .references(() => conversations.id, { onDelete: "cascade" }),
+  runId: text("run_id")
+    .notNull()
+    .references(() => runs.id),
+  summary: text("summary").notNull(),
+  questions: text("questions").notNull(),
+  answers: text("answers"),
   status: text("status").notNull(),
   createdAt: integer("created_at").notNull(),
 });

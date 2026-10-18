@@ -1,7 +1,16 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { models, settingsSchema, defaultSettings } from "@citadel/ai/models";
 import type { Identity } from "@citadel/auth";
-import { AppError, activeStatuses, approvalSchema, idSchema, submissionSchema } from "./contracts";
+import {
+  AppError,
+  activeStatuses,
+  approvalSchema,
+  idSchema,
+  submissionSchema,
+  clarificationAnswersSchema,
+  researchScopeInput,
+  type ScopeQuestion,
+} from "./contracts";
 import {
   database,
   getRun,
@@ -10,10 +19,11 @@ import {
   conversationView,
   runView,
 } from "./repository";
-import { conversations, plans, runs } from "./schema";
+import { conversations, plans, runs, clarifications } from "./schema";
 import { notify, progress, retainPartialResearch } from "./research";
 import { cancelProviderResponses } from "./provider";
 import type { Env } from "./env";
+import { deleteConversation, cleanDeletedConversationReports } from "./delete-conversation";
 
 export function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { "cache-control": "no-store" } });
@@ -108,6 +118,93 @@ export async function api(
   await ownedConversation(env, conversationId, identity.subject);
   if (path.length === 3 && request.method === "GET")
     return json(await snapshot(env, conversationId, identity.subject));
+  if (path.length === 3 && request.method === "DELETE") {
+    await deleteConversation(env, conversationId, identity.subject);
+    ctx.waitUntil(cleanDeletedConversationReports(env));
+    return json({ deleted: true });
+  }
+  if (
+    path[3] === "clarifications" &&
+    path[4] &&
+    path[5] === "answer" &&
+    path.length === 6 &&
+    request.method === "POST"
+  ) {
+    const clarificationId = idSchema.parse(path[4]);
+    const body = clarificationAnswersSchema.parse(await readBody(request));
+    const clarification = await db
+      .select()
+      .from(clarifications)
+      .where(
+        and(
+          eq(clarifications.id, clarificationId),
+          eq(clarifications.conversationId, conversationId),
+        ),
+      )
+      .get();
+    if (!clarification) throw new AppError(404, "Scope questions not found");
+    const content = researchScopeInput(
+      JSON.parse(clarification.questions) as ScopeQuestion[],
+      body.answers,
+    );
+    const prior = await db.select().from(runs).where(eq(runs.id, body.id)).get();
+    if (prior) {
+      if (
+        clarification.answerRunId !== body.id ||
+        prior.input !== content ||
+        prior.conversationId !== conversationId
+      )
+        throw new AppError(409, "Submission ID already used");
+      if (prior.status === "queued") ctx.waitUntil(dispatchRun(env, prior.id));
+      return json(runView(env, prior));
+    }
+    if (clarification.status !== "pending")
+      throw new AppError(409, "These questions have been answered or replaced. Refresh the chat.");
+    const planner = await getRun(env, clarification.runId);
+    const now = Date.now();
+    try {
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO runs (id, conversation_id, mode, status, settings, input, created_at, deadline) SELECT ?, conversation_id, 'plan', 'queued', ?, ?, ?, ? FROM research_clarifications WHERE id = ? AND conversation_id = ? AND status = 'pending'",
+        ).bind(
+          body.id,
+          planner.settings,
+          content,
+          now,
+          now + 30 * 60_000,
+          clarificationId,
+          conversationId,
+        ),
+        env.DB.prepare(
+          "UPDATE research_clarifications SET status = 'answered', answers = ?, answer_run_id = ? WHERE id = ? AND EXISTS (SELECT 1 FROM runs WHERE id = ?)",
+        ).bind(JSON.stringify(body.answers), body.id, clarificationId, body.id),
+        env.DB.prepare(
+          "INSERT INTO messages (id, conversation_id, run_id, role, content, created_at) SELECT ?, conversation_id, id, 'user', input, ? FROM runs WHERE id = ?",
+        ).bind(`${body.id}-user`, now, body.id),
+        env.DB.prepare(
+          "UPDATE conversations SET updated_at = ? WHERE id = ? AND EXISTS (SELECT 1 FROM runs WHERE id = ?)",
+        ).bind(now, conversationId, body.id),
+      ]);
+    } catch {
+      const saved = await db
+        .select()
+        .from(clarifications)
+        .where(eq(clarifications.id, clarificationId))
+        .get();
+      const repeated = await db.select().from(runs).where(eq(runs.id, body.id)).get();
+      if (saved?.answerRunId === body.id && repeated?.input === content)
+        return json(runView(env, repeated));
+      throw new AppError(
+        409,
+        "A request is active or these questions changed. Refresh before continuing.",
+      );
+    }
+    const created = await db.select().from(runs).where(eq(runs.id, body.id)).get();
+    if (!created) throw new AppError(409, "These questions have been replaced. Refresh the chat.");
+    ctx.waitUntil(dispatchRun(env, created.id).catch(() => undefined));
+    await notify(env, conversationId);
+    return json(runView(env, created), 202);
+  }
   if (path[3] === "messages" && path.length === 4 && request.method === "POST") {
     const body = submissionSchema.parse(await readBody(request));
     const existing = await db.select().from(runs).where(eq(runs.id, body.id)).get();
@@ -147,6 +244,9 @@ export async function api(
         ),
         env.DB.prepare(
           "UPDATE plans SET status = 'superseded' WHERE conversation_id = ? AND status = 'pending'",
+        ).bind(conversationId),
+        env.DB.prepare(
+          "UPDATE research_clarifications SET status = 'superseded' WHERE conversation_id = ? AND status = 'pending'",
         ).bind(conversationId),
         env.DB.prepare(
           "INSERT INTO messages (id, conversation_id, run_id, role, content, created_at) VALUES (?, ?, ?, 'user', ?, ?)",

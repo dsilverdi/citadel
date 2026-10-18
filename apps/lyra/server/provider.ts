@@ -6,6 +6,9 @@ import type { WorkflowStep } from "cloudflare:workers";
 import type { Env } from "./env";
 import { database, getRun, type RunRow } from "./repository";
 import { steps, messages, runs } from "./schema";
+import { planResponseFormat } from "./contracts";
+import { submitResponse, submittedResponseId, UncertainSubmission } from "./provider-submission";
+export { UncertainSubmission, ProviderRejected } from "./provider-submission";
 
 interface ProviderEvent {
   type: string;
@@ -15,14 +18,8 @@ interface ProviderEvent {
 export class StoppedRun extends Error {
   name = "StoppedRun";
 }
-export class UncertainSubmission extends Error {
-  name = "UncertainSubmission";
-}
 export class ResearchLimit extends Error {
   name = "ResearchLimit";
-}
-export class ProviderRejected extends Error {
-  name = "ProviderRejected";
 }
 
 export async function assertRunning(env: Env, runId: string) {
@@ -68,17 +65,82 @@ export async function complete(
     await workflow.sleep(`${key}-mock-latency`, "1 second");
     return workflow.do(`${key}-mock`, async () => {
       await assertRunning(env, run.id);
+      const clarify =
+        /user: help me explore business ideas/i.test(options.input) &&
+        !options.input.includes("Research scope preferences:");
       const text = options.json
-        ? JSON.stringify({
-            kind: "plan",
-            title: "Research brief",
-            summary: "Compare authoritative sources and report findings with citations.",
-            questions: [
-              "What do primary sources establish about the question?",
-              "What tradeoffs and uncertainties should be considered?",
-            ],
-            clarifyingQuestions: [],
-          })
+        ? JSON.stringify(
+            clarify
+              ? {
+                  kind: "clarification",
+                  title: "Scope your business research",
+                  summary:
+                    "A few preferences will help focus the opportunities and recommendations.",
+                  questions: [],
+                  clarifyingQuestions: [
+                    {
+                      question: "Which sector would you like to explore?",
+                      options: [
+                        {
+                          label: "Productivity",
+                          description: "Explore practical tools for everyday work.",
+                        },
+                        {
+                          label: "Finance",
+                          description: "Focus on financial products and services.",
+                        },
+                        {
+                          label: "Developer tools",
+                          description: "Explore opportunities for software teams.",
+                        },
+                      ],
+                      recommendedIndex: 0,
+                    },
+                    {
+                      question: "What timeline should the research aim for?",
+                      options: [
+                        {
+                          label: "Next 3 months",
+                          description: "Prioritize opportunities you can act on soon.",
+                        },
+                        {
+                          label: "Next 12 months",
+                          description: "Allow time for validation and development.",
+                        },
+                      ],
+                      recommendedIndex: 0,
+                    },
+                    {
+                      question: "Who would you like to serve?",
+                      options: [
+                        {
+                          label: "Individuals",
+                          description: "Focus on personal needs and consumer use.",
+                        },
+                        {
+                          label: "Small teams",
+                          description: "Explore specific workplace needs and smaller buying teams.",
+                        },
+                        {
+                          label: "Enterprise",
+                          description: "Focus on large organizations and longer sales cycles.",
+                        },
+                      ],
+                      recommendedIndex: 1,
+                    },
+                  ],
+                }
+              : {
+                  kind: "plan",
+                  title: "Research brief",
+                  summary: "Compare authoritative sources and report findings with citations.",
+                  questions: [
+                    "What do primary sources establish about the question?",
+                    "What tradeoffs and uncertainties should be considered?",
+                  ],
+                  clarifyingQuestions: [],
+                },
+          )
         : options.search
           ? "Cloudflare Workers runs application code at the edge. Consult the official documentation for capabilities and limits. [Cloudflare](https://developers.cloudflare.com/workers/)"
           : key === "synthesis"
@@ -118,13 +180,13 @@ export async function complete(
     });
   }
 
-  const responseId = await workflow.do(
+  const submission = await workflow.do(
     `${key}-submit`,
     { retries: { limit: 0, delay: "1 second", backoff: "constant" }, timeout: "2 minutes" },
     async () => {
       await assertRunning(env, run.id);
       const existing = await db.select().from(steps).where(eq(steps.id, stepId)).get();
-      if (existing?.responseId) return existing.responseId;
+      if (existing?.responseId) return { responseId: existing.responseId };
       if (existing)
         throw new UncertainSubmission(
           "A previous provider submission could not be confirmed. Cancel this run before trying again.",
@@ -134,62 +196,39 @@ export async function complete(
         .insert(steps)
         .values({ id: stepId, runId: run.id, status: "creating", createdAt: Date.now() });
       const settings = JSON.parse(run.settings) as ModelSettings;
-      // Public SDK transport methods preserve support for newly released model settings.
-      let stream: AsyncIterable<ProviderEvent>;
-      try {
-        stream = await client.post<AsyncIterable<ProviderEvent>>("/responses", {
-          stream: true,
-          body: {
-            model: settings.model,
-            reasoning: { effort: settings.effort },
-            instructions: options.instructions,
-            input: options.input,
-            background: true,
-            stream: true,
-            store: true,
-            max_output_tokens: 8192,
-            ...(options.json ? { text: { format: { type: "json_object" } } } : {}),
-            ...(options.search
-              ? {
-                  tools: [{ type: "web_search" }],
-                  max_tool_calls: options.toolBudget || 1,
-                  include: ["web_search_call.action.sources"],
-                }
-              : {}),
-          },
-        });
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          "status" in error &&
-          typeof error.status === "number" &&
-          [400, 401, 403, 404, 422, 429].includes(error.status)
-        ) {
-          await db.update(steps).set({ status: "completed" }).where(eq(steps.id, stepId));
-          throw new ProviderRejected(
-            error.status === 429
-              ? "OpenAI rate or spending limit reached. Check your project limits before starting another run."
-              : "OpenAI rejected the request. Check your API key, model access, and the selected model’s tool and effort support.",
-          );
-        }
-        throw error;
+      const submitted = await submitResponse(client, {
+        model: settings.model,
+        reasoning: { effort: settings.effort },
+        instructions: options.instructions,
+        input: options.input,
+        background: true,
+        stream: true,
+        store: true,
+        max_output_tokens: 8192,
+        ...(options.json ? { text: { format: planResponseFormat } } : {}),
+        ...(options.search
+          ? {
+              tools: [{ type: "web_search" }],
+              max_tool_calls: options.toolBudget || 1,
+              include: ["web_search_call.action.sources"],
+            }
+          : {}),
+      });
+      if ("rejection" in submitted) {
+        await db.update(steps).set({ status: "completed" }).where(eq(steps.id, stepId));
+        return submitted;
       }
-      for await (const event of stream) {
-        if (event.type === "response.created" && event.response?.id) {
-          await db
-            .update(steps)
-            .set({ responseId: event.response.id, status: "active" })
-            .where(eq(steps.id, stepId));
-          await assertRunning(env, run.id);
-          // Breaking closes the stream; background generation continues at OpenAI.
-          return event.response.id;
-        }
-      }
-      throw new UncertainSubmission(
-        "OpenAI did not confirm a response ID. The request may have been accepted.",
-      );
+      await db
+        .update(steps)
+        .set({ responseId: submitted.responseId, status: "active" })
+        .where(eq(steps.id, stepId));
+      await assertRunning(env, run.id);
+      return submitted;
     },
   );
+
+  // Throw outside workflow.do: Cloudflare wraps exceptions thrown inside a step.
+  const responseId = submittedResponseId(submission);
 
   if (options.live) {
     await workflow.do(
