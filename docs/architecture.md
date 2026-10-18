@@ -4,7 +4,7 @@
 
 - TypeScript across the repository, pnpm workspaces, and Turborepo task dependencies.
 - React Router framework mode runs on Workers through Cloudflare's Vite integration. Each future app gets an independent deployment and resource set.
-- UI primitives live in `@citadel/ui`; app-specific views stay in their app. Inter is self-hosted from the Google Fonts family through Fontsource. Shared semantic tokens provide the cyan monochrome dark theme.
+- UI primitives live in `@citadel/ui`; app-specific views stay in their app. Inter is self-hosted from the Google Fonts family through Fontsource. Shared semantic tokens provide the neutral light theme.
 - D1 is the source of truth. Agents coordinate live conversation delivery without maintaining a second copy of the transcript. R2 stores downloadable report artifacts.
 - Cloudflare Workflows checkpoint application-controlled research. The OpenAI Responses API supplies models and hosted web search; there is no second agent framework competing with Workflows.
 - Research is read-only. Retrieved text is untrusted evidence. Source IDs and URLs are preserved through synthesis; arbitrary HTML is never rendered in the UI.

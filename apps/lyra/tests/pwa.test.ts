@@ -74,7 +74,7 @@ describe("PWA offline privacy and recovery", () => {
   it("only precaches the generic offline page and supplied logo", async () => {
     const sw = worker(assets);
     await sw.lifecycle("install");
-    expect([...sw.stores.get("lyra-pwa-v1")!.keys()]).toEqual([
+    expect([...sw.stores.get("lyra-pwa-v2")!.keys()]).toEqual([
       `${origin}/offline.html`,
       `${origin}/logo.png`,
     ]);
@@ -88,7 +88,7 @@ describe("PWA offline privacy and recovery", () => {
     await sw.lifecycle("install");
     offline = true;
     expect(await (await sw.fetch("/?c=private-conversation"))!.text()).toBe("Offline screen");
-    expect(sw.stores.get("lyra-pwa-v1")!.has(`${origin}/?c=private-conversation`)).toBe(false);
+    expect(sw.stores.get("lyra-pwa-v2")!.has(`${origin}/?c=private-conversation`)).toBe(false);
   });
   it("does not intercept API calls, reports, mutations, or another origin", () => {
     const sw = worker(assets);
@@ -115,7 +115,7 @@ describe("PWA offline privacy and recovery", () => {
     sw.stores.set("another-app", new Map());
     await sw.lifecycle("install");
     await sw.lifecycle("activate");
-    expect([...sw.stores.keys()].sort()).toEqual(["another-app", "lyra-pwa-v1"]);
+    expect([...sw.stores.keys()].sort()).toEqual(["another-app", "lyra-pwa-v2"]);
   });
 });
 

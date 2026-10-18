@@ -31,7 +31,7 @@ test("offers native installation with a home-screen guide as fallback", async ({
   await expect(page.locator("html")).toHaveAttribute("data-install-prompt-opened", "true");
   await expect(page.getByRole("button", { name: "Install Lyra", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Install Lyra", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Lyra, a tap away" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Install Lyra" })).toBeVisible();
 });
 
 test("hides installation controls in an installed window", async ({ page, isMobile }) => {

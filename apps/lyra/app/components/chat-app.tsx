@@ -3,7 +3,6 @@ import { useAgent } from "agents/react";
 import { InstallApp } from "./install-app";
 import {
   ArrowDown,
-  ArrowRight,
   ArrowUp,
   BookOpen,
   Brain,
@@ -20,10 +19,9 @@ import {
   PanelLeftClose,
   Plus,
   Search,
-  ShieldCheck,
-  Sparkles,
   Square,
-  Telescope,
+  SquarePen,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { Button, Markdown, Sheet, SheetContent, SheetTrigger, cn } from "@citadel/ui";
@@ -44,36 +42,6 @@ interface Initial {
   demo: boolean;
   configured: boolean;
 }
-const suggestions = [
-  {
-    icon: Telescope,
-    category: "Explore a topic",
-    title: "Go beyond the headlines",
-    prompt:
-      "Research the most significant recent developments in renewable energy storage. Compare primary sources, practical implications, and remaining uncertainties.",
-  },
-  {
-    icon: Compass,
-    category: "Compare possibilities",
-    title: "Find the right direction",
-    prompt:
-      "Compare Cloudflare Workers and a traditional VPS for hosting personal internal tools. Evaluate costs, maintenance, reliability, and limitations using current primary sources.",
-  },
-  {
-    icon: BookOpen,
-    category: "Understand deeply",
-    title: "Make the complex clear",
-    prompt:
-      "Research how retrieval-augmented generation works, where it helps, and its failure modes. Use primary technical sources and explain the tradeoffs clearly.",
-  },
-  {
-    icon: Globe2,
-    category: "Connect the dots",
-    title: "See the bigger picture",
-    prompt:
-      "Research how AI infrastructure demand is affecting energy systems. Compare credible primary sources and distinguish established facts from projections.",
-  },
-];
 const busy = (run: Run) => ["queued", "running", "uncertain"].includes(run.status);
 
 async function request<T>(path: string, body?: unknown): Promise<T> {
@@ -153,6 +121,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
   const [search, setSearch] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const [live, setLive] = useState<{ runId: string; text: string } | null>(null);
   const selectedRef = useRef(selected);
@@ -320,7 +289,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
   }
   const nav = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-20 items-center justify-between px-5">
+      <div className="hidden h-20 items-center px-6 md:flex">
         <a
           href="/"
           onClick={(event) => {
@@ -330,28 +299,21 @@ export function ChatApp({ initial }: { initial: Initial }) {
           className="flex items-center gap-2.5"
         >
           <LyraMark />
-          <span className="text-xl font-semibold tracking-[-0.06em]">
-            lyra<span className="text-primary">.</span>
-          </span>
+          <span className="text-xl font-medium tracking-tight">Lyra</span>
         </a>
-        <span className="rounded border border-border px-1.5 py-0.5 text-[9px] tracking-widest text-muted-foreground">
-          CITADEL
-        </span>
       </div>
       <div className="px-4">
         <Button
-          className="w-full justify-start gap-3"
+          className="h-12 w-full justify-start gap-3 rounded-full px-4"
           variant="secondary"
           onClick={() => selectConversation(null)}
         >
-          <Plus className="text-primary" />
-          New conversation
+          <SquarePen />
+          New chat
         </Button>
       </div>
       <div className="mt-7 flex items-center justify-between px-6">
-        <span className="text-[10px] font-medium tracking-[0.16em] text-muted-foreground">
-          YOUR CONVERSATIONS
-        </span>
+        <span className="text-xs font-medium text-muted-foreground">Chats</span>
         <Button
           size="icon"
           variant="ghost"
@@ -387,42 +349,30 @@ export function ChatApp({ initial }: { initial: Initial }) {
               onClick={() => selectConversation(conversation.id)}
               aria-current={selected === conversation.id ? "page" : undefined}
               className={cn(
-                "mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-xs transition-colors",
+                "mb-1 flex w-full items-center gap-3 rounded-full px-4 py-3 text-left text-sm transition-colors",
                 selected === conversation.id
                   ? "bg-accent text-foreground"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground",
               )}
             >
-              <MessageSquare className="size-3.5 shrink-0" />
               <span className="truncate">{conversation.title}</span>
             </button>
           ))}
         {!conversations.length && (
           <p className="px-3 py-5 text-xs leading-relaxed text-muted-foreground/70">
-            A space for your next question.
-            <br />
-            Your conversations will live here.
+            Your chats will appear here.
           </p>
         )}
       </nav>
       <div className="px-4">
         <InstallApp />
       </div>
-      <div className="m-4 rounded-xl border border-border/70 bg-background/50 p-3.5">
-        <div className="flex items-center gap-2 text-xs font-medium">
-          <ShieldCheck className="size-3.5 text-primary" />
-          Your private corner
-        </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-          A personal workspace for ideas worth exploring.
-        </p>
-      </div>
-      <div className="flex items-center gap-3 border-t border-border/70 px-5 py-4">
-        <span className="grid size-8 place-items-center rounded-full border border-border bg-accent text-xs text-primary">
+      <div className="flex items-center gap-3 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5">
+        <span className="grid size-9 place-items-center rounded-full bg-accent text-sm text-foreground">
           {initial.email[0]?.toUpperCase() || "Y"}
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-medium">Personal workspace</p>
+          <p className="text-xs font-medium">Citadel</p>
           <p className="mt-1 truncate text-[10px] text-muted-foreground">{initial.email}</p>
         </div>
       </div>
@@ -443,14 +393,14 @@ export function ChatApp({ initial }: { initial: Initial }) {
       )}
       <aside
         className={cn(
-          "hidden shrink-0 border-r border-border/70 bg-card/55 md:block",
-          sidebarOpen ? "w-0 overflow-hidden border-0" : "w-[258px]",
+          "hidden shrink-0 bg-muted/60 md:block",
+          sidebarOpen ? "w-0 overflow-hidden border-0" : "w-[272px]",
         )}
       >
         {nav}
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-border/50 px-4 sm:px-7">
+        <header className="flex h-[76px] shrink-0 items-center justify-between px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Sheet open={mobileNav} onOpenChange={setMobileNav}>
               <SheetTrigger asChild>
@@ -463,7 +413,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
                   <Menu />
                 </Button>
               </SheetTrigger>
-              <SheetContent title="Your workspace" className="[&>div:first-child]:sr-only">
+              <SheetContent title="Lyra" className="w-full border-0 sm:w-[320px]">
                 {nav}
               </SheetContent>
             </Sheet>
@@ -476,22 +426,34 @@ export function ChatApp({ initial }: { initial: Initial }) {
             >
               <PanelLeftClose />
             </Button>
-            <span className="hidden text-xs text-muted-foreground sm:inline">Workspace</span>
-            <span className="hidden text-muted-foreground/40 sm:inline">/</span>
-            <span className="truncate text-xs font-medium">
-              {current?.conversation.title || "New conversation"}
-            </span>
+            <div className="min-w-0">
+              <button
+                type="button"
+                aria-label="Model settings"
+                onClick={() => setOptionsOpen(true)}
+                className="flex items-center gap-2 rounded-xl px-2 py-1 text-xl font-medium tracking-tight hover:bg-muted"
+              >
+                Lyra <ChevronDown className="size-4 text-muted-foreground" />
+              </button>
+              <p className="max-w-[45vw] truncate px-2 text-[11px] text-muted-foreground sm:max-w-xs">
+                {models.find((model) => model.id === settings.model)?.name}
+              </p>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {initial.demo && (
               <span className="rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground">
                 Local demo
               </span>
             )}
-            <span className="hidden items-center gap-1.5 text-[10px] text-muted-foreground sm:flex">
-              <span className="size-1.5 rounded-full bg-primary/80" />
-              Private workspace
-            </span>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="New chat"
+              onClick={() => selectConversation(null)}
+            >
+              <SquarePen />
+            </Button>
             <Button
               size="icon"
               variant="ghost"
@@ -521,43 +483,10 @@ export function ChatApp({ initial }: { initial: Initial }) {
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
           >
             {!current?.messages.length ? (
-              <div className="mx-auto flex min-h-full max-w-[850px] flex-col justify-center px-6 pb-8 pt-10 sm:px-10">
-                <div className="mb-6 flex items-center gap-2 text-[10px] font-medium tracking-[0.18em] text-primary/80">
-                  <span className="h-px w-7 bg-primary/60" />A SPACE FOR CURIOSITY
-                </div>
-                <h1 className="text-[clamp(2.1rem,4.2vw,3.35rem)] font-medium leading-[1.2] tracking-[-0.055em]">
-                  A little curiosity.
-                  <br />
-                  <span className="text-primary">A clearer picture.</span>
+              <div className="mx-auto flex min-h-full max-w-[760px] flex-col items-center justify-center px-6 pb-16 text-center">
+                <h1 className="text-[clamp(1.9rem,4vw,2.75rem)] font-normal leading-tight tracking-[-0.045em]">
+                  What would you like to know?
                 </h1>
-                <p className="mt-5 max-w-[480px] text-sm leading-7 text-muted-foreground">
-                  Follow a question. Explore the evidence. Connect the dots.
-                  <br className="hidden sm:block" /> I’m Lyra, your companion for thinking things
-                  through.
-                </p>
-                <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.category}
-                      onClick={() => {
-                        setDraft(suggestion.prompt);
-                        setMode("research");
-                        inputRef.current?.focus();
-                      }}
-                      className="group rounded-xl border border-border/80 bg-card/35 p-4 text-left transition-colors hover:border-primary/35 hover:bg-card sm:p-5"
-                    >
-                      <div className="mb-4 flex items-center justify-between">
-                        <suggestion.icon
-                          className="size-[18px] text-primary/75"
-                          strokeWidth={1.5}
-                        />
-                        <ArrowRight className="size-3.5 text-muted-foreground/30 transition-colors group-hover:text-primary" />
-                      </div>
-                      <p className="text-xs font-medium">{suggestion.category}</p>
-                      <p className="mt-1.5 text-xs text-muted-foreground">{suggestion.title}</p>
-                    </button>
-                  ))}
-                </div>
               </div>
             ) : (
               <div className="mx-auto max-w-[820px] space-y-8 px-5 py-8 sm:px-10">
@@ -570,7 +499,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
                       key={message.id}
                       className={cn(
                         message.role === "user"
-                          ? "ml-auto max-w-[90%] rounded-2xl rounded-br-md border border-border bg-secondary px-5 py-3"
+                          ? "ml-auto max-w-[90%] rounded-3xl bg-secondary px-5 py-3"
                           : "",
                       )}
                     >
@@ -630,11 +559,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
                   />
                 )}
                 {active && (
-                  <div
-                    className="rounded-xl border border-border bg-card/60 p-4"
-                    role="status"
-                    aria-live="polite"
-                  >
+                  <div className="rounded-2xl bg-muted/60 p-4" role="status" aria-live="polite">
                     <div className="flex items-center gap-2 text-xs font-medium">
                       {active.status === "uncertain" ? (
                         <History className="size-4 text-primary" />
@@ -644,10 +569,10 @@ export function ChatApp({ initial }: { initial: Initial }) {
                       {active.status === "uncertain"
                         ? "Submission needs attention"
                         : active.mode === "research"
-                          ? "Following the evidence"
+                          ? "Researching…"
                           : active.mode === "plan"
-                            ? "Shaping your research plan"
-                            : "Thinking it through"}
+                            ? "Preparing your research plan…"
+                            : "Thinking…"}
                     </div>
                     <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                       {active.error ||
@@ -694,7 +619,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
               <ArrowDown />
             </Button>
           )}
-          <div className="shrink-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-8 sm:pb-5">
+          <div className="shrink-0 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-8 sm:pb-7">
             <div className="mx-auto max-w-[740px]">
               {error && (
                 <div
@@ -718,7 +643,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
                   event.preventDefault();
                   void send();
                 }}
-                className="rounded-2xl border border-input bg-card p-3 shadow-[0_0_50px_-20px_#16434d] transition-colors focus-within:border-primary/45 sm:p-4"
+                className="rounded-[28px] bg-secondary/70 p-3 transition-colors focus-within:bg-secondary sm:p-4"
               >
                 <label className="sr-only" htmlFor="message">
                   Message Lyra
@@ -726,7 +651,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
                 <textarea
                   id="message"
                   ref={inputRef}
-                  rows={2}
+                  rows={1}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   maxLength={24_000}
@@ -745,77 +670,40 @@ export function ChatApp({ initial }: { initial: Initial }) {
                     currentPlan
                       ? "Refine the plan, or approve it above…"
                       : mode === "research"
-                        ? "What would you like to explore?"
-                        : "Ask a question, follow a thought…"
+                        ? "Research a topic"
+                        : "Ask Lyra"
                   }
-                  className="block max-h-[180px] min-h-[60px] w-full resize-none bg-transparent px-1 py-1 text-[16px] leading-6 text-foreground outline-none placeholder:text-muted-foreground/65 focus-visible:outline-none sm:text-sm"
+                  className="block max-h-[180px] min-h-10 w-full resize-none bg-transparent px-3 py-2 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none"
                 />
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-                    <div className="relative">
-                      <Sparkles className="pointer-events-none absolute left-2.5 top-1/2 size-3 -translate-y-1/2 text-primary" />
-                      <select
-                        aria-label="Conversation mode"
-                        value={mode}
-                        onChange={(event) => setMode(event.target.value as "chat" | "research")}
-                        className="h-11 appearance-none rounded-lg border border-border bg-secondary pl-7 pr-6 text-[10px] font-medium text-primary sm:h-8 sm:text-xs"
-                      >
-                        <option value="research">Deep research</option>
-                        <option value="chat">Chat</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-2.5 -translate-y-1/2 text-muted-foreground" />
-                    </div>
-                    <div className="relative">
-                      <select
-                        aria-label="Model"
-                        value={settings.model}
-                        onChange={(event) => {
-                          const model = models.find((item) => item.id === event.target.value)!;
-                          settingsDirty.current = true;
-                          setSettings({
-                            model: model.id,
-                            effort: model.efforts.includes(settings.effort)
-                              ? settings.effort
-                              : "medium",
-                          });
-                        }}
-                        className="h-11 max-w-[130px] appearance-none rounded-lg border border-transparent bg-transparent pl-2 pr-5 text-[10px] text-muted-foreground hover:bg-secondary sm:h-8 sm:text-xs"
-                      >
-                        {models.map((model) => (
-                          <option key={model.id} value={model.id}>
-                            {model.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 size-2.5 -translate-y-1/2 text-muted-foreground" />
-                    </div>
-                    <div className="relative">
-                      <Brain className="pointer-events-none absolute left-1.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
-                      <select
-                        aria-label="Thinking effort"
-                        value={settings.effort}
-                        onChange={(event) => {
-                          settingsDirty.current = true;
-                          setSettings({ ...settings, effort: event.target.value as Effort });
-                        }}
-                        className="h-11 appearance-none rounded-lg border border-transparent bg-transparent pl-6 pr-5 text-[10px] capitalize text-muted-foreground hover:bg-secondary sm:h-8 sm:text-xs"
-                      >
-                        {models
-                          .find((model) => model.id === settings.model)
-                          ?.efforts.map((effort) => (
-                            <option key={effort} value={effort}>
-                              {effort}
-                            </option>
-                          ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 size-2.5 -translate-y-1/2 text-muted-foreground" />
-                    </div>
+                  <div className="flex min-w-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Chat options"
+                      onClick={() => setOptionsOpen(true)}
+                    >
+                      <Plus className="size-5" />
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setOptionsOpen(true)}
+                      className="flex h-11 items-center gap-2 rounded-full px-3 text-xs text-muted-foreground hover:bg-background/70"
+                    >
+                      {mode === "research" ? (
+                        <Globe2 className="size-4" />
+                      ) : (
+                        <MessageSquare className="size-4" />
+                      )}
+                      {mode === "research" ? "Deep research" : "Chat"}
+                    </button>
                   </div>
                   {active ? (
                     <Button
                       type="button"
                       size="icon"
-                      className="size-11 rounded-xl sm:size-9"
+                      className="size-11 rounded-full"
                       aria-label="Stop generation"
                       onClick={() => {
                         void stop();
@@ -827,7 +715,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
                     <Button
                       type="submit"
                       size="icon"
-                      className="size-11 rounded-xl sm:size-9"
+                      className="size-11 rounded-full"
                       disabled={!draft.trim() || sending || !initial.configured}
                       aria-label="Send message"
                     >
@@ -836,14 +724,108 @@ export function ChatApp({ initial }: { initial: Initial }) {
                   )}
                 </div>
               </form>
-              <div className="mt-3 flex items-center justify-center gap-1.5 text-center text-[10px] leading-relaxed text-muted-foreground/65">
-                <ShieldCheck className="size-3 shrink-0" />
-                <span>Stay curious. Check the sources. Make up your own mind.</span>
-              </div>
             </div>
           </div>
         </main>
       </div>
+      <Sheet open={optionsOpen} onOpenChange={setOptionsOpen}>
+        <SheetContent side="bottom" title="Chat options" className="mx-auto max-w-2xl">
+          <div className="space-y-6 overflow-y-auto p-6">
+            <div role="group" aria-label="Conversation mode" className="space-y-1">
+              {(
+                [
+                  {
+                    value: "chat",
+                    title: "Chat",
+                    description: "Ask a question or talk something through",
+                    icon: MessageSquare,
+                  },
+                  {
+                    value: "research",
+                    title: "Deep research",
+                    description: "Review a plan and get a report with sources",
+                    icon: Globe2,
+                  },
+                ] as const
+              ).map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  aria-pressed={mode === item.value}
+                  onClick={() => {
+                    setMode(item.value);
+                    setOptionsOpen(false);
+                    inputRef.current?.focus();
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-4 rounded-2xl p-4 text-left hover:bg-muted",
+                    mode === item.value && "bg-muted",
+                  )}
+                >
+                  <item.icon className="size-5 shrink-0" strokeWidth={1.5} />
+                  <span className="flex-1">
+                    <span className="block text-sm font-medium">{item.title}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                      {item.description}
+                    </span>
+                  </span>
+                  {mode === item.value && <Check className="size-4" />}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
+              <label className="space-y-2">
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <SlidersHorizontal className="size-3.5" />
+                  Model
+                </span>
+                <select
+                  aria-label="Model"
+                  value={settings.model}
+                  onChange={(event) => {
+                    const model = models.find((item) => item.id === event.target.value)!;
+                    settingsDirty.current = true;
+                    setSettings({
+                      model: model.id,
+                      effort: model.efforts.includes(settings.effort) ? settings.effort : "medium",
+                    });
+                  }}
+                  className="h-12 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                >
+                  {models.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-2">
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Brain className="size-3.5" />
+                  Thinking effort
+                </span>
+                <select
+                  aria-label="Thinking effort"
+                  value={settings.effort}
+                  onChange={(event) => {
+                    settingsDirty.current = true;
+                    setSettings({ ...settings, effort: event.target.value as Effort });
+                  }}
+                  className="h-12 w-full rounded-xl border border-border bg-background px-3 text-sm capitalize"
+                >
+                  {models
+                    .find((model) => model.id === settings.model)
+                    ?.efforts.map((effort) => (
+                      <option key={effort} value={effort}>
+                        {effort}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
       <Sheet open={sourcesOpen} onOpenChange={setSourcesOpen}>
         <SheetContent
           side="right"
@@ -873,10 +855,10 @@ function PlanCard({
   return (
     <section
       aria-label="Research plan"
-      className="overflow-hidden rounded-xl border border-primary/25 bg-card"
+      className="overflow-hidden rounded-2xl border border-border bg-card"
     >
       <div className="border-b border-border px-5 py-4">
-        <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-widest text-primary">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Compass className="size-3.5" />
           Your research plan
         </div>
@@ -941,9 +923,9 @@ function Sources({ sources }: { sources: Source[] }) {
       ) : (
         <div className="py-12 text-center">
           <BookOpen className="mx-auto size-7 text-muted-foreground/60" />
-          <p className="mt-4 text-sm">A clearer picture starts with evidence.</p>
+          <p className="mt-4 text-sm">No sources yet.</p>
           <p className="mt-2 text-xs leading-6 text-muted-foreground">
-            Sources will appear here when your research is ready.
+            Sources from your research will appear here.
           </p>
         </div>
       )}

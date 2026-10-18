@@ -7,11 +7,10 @@ import { ChatApp } from "../components/chat-app";
 
 export function meta() {
   return [
-    { title: "Lyra · A space for curiosity" },
+    { title: "Lyra · Citadel" },
     {
       name: "description",
-      content:
-        "Your personal research companion. Ask better questions, explore reliable sources, and find a clearer picture.",
+      content: "Chat, research, and reports with sources.",
     },
   ];
 }

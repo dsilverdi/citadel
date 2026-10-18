@@ -76,7 +76,7 @@ export function InstallApp() {
       <Sheet open={helpOpen} onOpenChange={setHelpOpen}>
         <SheetContent
           side="bottom"
-          title="Lyra, a tap away"
+          title="Install Lyra"
           description="Add Lyra to your home screen and open it in its own window."
         >
           <div className="mx-auto w-full max-w-lg space-y-5 overflow-y-auto px-6 py-6 text-sm leading-7">
@@ -88,7 +88,7 @@ export function InstallApp() {
                 height={44}
                 className="size-11 rounded-lg"
               />
-              <p className="font-medium">Your research companion, on your home screen.</p>
+              <p className="font-medium">Lyra on your home screen.</p>
             </div>
             {error && (
               <p role="status" className="text-muted-foreground">

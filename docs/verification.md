@@ -24,3 +24,9 @@ pnpm test:e2e
 ```
 
 Commit the generated lockfile. Then provision staging and perform a real OpenAI smoke test following [deployment.md](deployment.md).
+
+## Light UI refresh — 2026-10-18
+
+Replaced the dark cyan surfaces, suggestion cards, glow, and decorative copy with a neutral light theme, compact composer, and a bottom sheet for conversation mode and model settings. PWA theme/launch colors and the offline page now match; offline cache version is v2 so installed clients replace the old offline screen.
+
+Formatting, ESLint, Lyra and shared UI TypeScript checks, all 21 unit tests, all 10 desktop/mobile Playwright tests, and the production client/Worker build passed. Playwright used the installed Chromium headless shell with a temporary config against the real local Cloudflare demo server. Research approval, history after reload, chat/revision, cancellation, source viewing, and install prompt/fallback flows were exercised. Desktop, phone, and options-sheet screenshots were visually reviewed. Physical phone installation remains unverified. No live OpenAI requests were made and this UI refresh has not been deployed.

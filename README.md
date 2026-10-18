@@ -1,6 +1,6 @@
 # Citadel
 
-A personal toolkit on Cloudflare. Independent applications share a TypeScript workspace, a cyan dark design system, authentication, and AI infrastructure.
+A personal toolkit on Cloudflare. Independent applications share a TypeScript workspace, a minimal light design system, authentication, and AI infrastructure.
 
 **Lyra** is the first application: a responsive chat workspace for web research, plan approval, cited reports, and follow-up questions. The composer lets you select a model and its thinking effort.
 

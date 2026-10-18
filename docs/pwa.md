@@ -1,6 +1,6 @@
 # Install Lyra on your phone
 
-Lyra can be installed from its HTTPS address and launched from a home-screen icon in a standalone window. The supplied logo/icons and cyan dark theme carry into the installation and launch experience. No app-store download is required.
+Lyra can be installed from its HTTPS address and launched from a home-screen icon in a standalone window. The supplied logo/icons and light theme carry into the installation and launch experience. No app-store download is required.
 
 ## Android
 

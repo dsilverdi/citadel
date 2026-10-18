@@ -4,25 +4,25 @@
 @source "./**/*.{ts,tsx}";
 
 :root {
-  color-scheme: dark;
-  --background: #071113;
-  --foreground: #e5f5f7;
-  --card: #0c191c;
-  --card-foreground: #e5f5f7;
-  --popover: #0c191c;
-  --popover-foreground: #e5f5f7;
-  --primary: #67e8f9;
-  --primary-foreground: #071113;
-  --secondary: #102328;
-  --secondary-foreground: #e5f5f7;
-  --muted: #102328;
-  --muted-foreground: #8aa9ae;
-  --accent: #163037;
-  --accent-foreground: #e5f5f7;
-  --border: #17363c;
-  --input: #24464d;
-  --ring: #67e8f9;
-  --radius: 0.75rem;
+  color-scheme: light;
+  --background: #fafaf9;
+  --foreground: #202124;
+  --card: #ffffff;
+  --card-foreground: #202124;
+  --popover: #ffffff;
+  --popover-foreground: #202124;
+  --primary: #202124;
+  --primary-foreground: #ffffff;
+  --secondary: #eeefed;
+  --secondary-foreground: #202124;
+  --muted: #f0f1ef;
+  --muted-foreground: #6b706d;
+  --accent: #e5e7e4;
+  --accent-foreground: #202124;
+  --border: #e2e4e0;
+  --input: #d5d8d2;
+  --ring: #68736c;
+  --radius: 1rem;
 }
 
 @theme inline {
@@ -68,8 +68,8 @@
     cursor: default;
   }
   ::selection {
-    background: #245862;
-    color: #e5f5f7;
+    background: #cfe9ed;
+    color: #202124;
   }
   :focus-visible {
     outline: 2px solid var(--ring);
@@ -116,7 +116,7 @@
     font-size: 1.05rem;
   }
   .markdown a {
-    color: var(--primary);
+    color: #226675;
     text-decoration: underline;
     text-underline-offset: 3px;
   }

@@ -5,12 +5,12 @@ test("research requires approval, preserves settings, and restores after refresh
   page,
 }) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "A little curiosity. A clearer picture." }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What would you like to know?" })).toBeVisible();
   await expect(page.getByText("Local demo", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Model settings" }).click();
   await page.getByLabel("Model", { exact: true }).selectOption("gpt-6-astra");
   await page.getByLabel("Thinking effort", { exact: true }).selectOption("high");
+  await page.getByRole("button", { name: "Close panel" }).click();
   await page
     .getByRole("textbox", { name: "Message Lyra" })
     .fill("Compare edge hosting for personal tools");
@@ -51,7 +51,8 @@ test("supports chat, revision, duplicate submission, and stale approval rejectio
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Conversation mode").selectOption("chat");
+  await page.getByRole("button", { name: "Chat options", exact: true }).click();
+  await page.getByRole("button", { name: "Chat Ask a question or talk something through" }).click();
   await page.getByRole("textbox", { name: "Message Lyra" }).fill("Hello Lyra");
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(
