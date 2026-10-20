@@ -16,7 +16,6 @@ import {
   History,
   LoaderCircle,
   Menu,
-  MessageSquare,
   PanelLeftClose,
   Plus,
   Search,
@@ -116,7 +115,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
   const [settings, setSettings] = useState<ModelSettings>(
     initial.initialSnapshot?.conversation.settings || defaultSettings,
   );
-  const [mode, setMode] = useState<"chat" | "research">("research");
+  const [mode, setMode] = useState<"chat" | "search" | "research">("chat");
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -773,18 +772,21 @@ export function ChatApp({ initial }: { initial: Initial }) {
                     >
                       <Plus className="size-5" />
                     </Button>
-                    <button
-                      type="button"
-                      onClick={() => setOptionsOpen(true)}
-                      className="flex h-11 items-center gap-2 rounded-full px-3 text-xs text-muted-foreground hover:bg-background/70"
-                    >
-                      {mode === "research" ? (
-                        <Globe2 className="size-4" />
-                      ) : (
-                        <MessageSquare className="size-4" />
-                      )}
-                      {mode === "research" ? "Deep research" : "Chat"}
-                    </button>
+                    {mode !== "chat" && (
+                      <button
+                        type="button"
+                        onClick={() => setMode("chat")}
+                        className="flex h-11 items-center gap-2 rounded-full px-3 text-xs text-muted-foreground hover:bg-background/70"
+                      >
+                        {mode === "research" ? (
+                          <Globe2 className="size-4" />
+                        ) : (
+                          <Search className="size-4" />
+                        )}
+                        {mode === "research" ? "Deep research" : "Web search"}
+                        <X className="size-3" aria-hidden="true" />
+                      </button>
+                    )}
                   </div>
                   {active ? (
                     <Button
@@ -860,14 +862,14 @@ export function ChatApp({ initial }: { initial: Initial }) {
       <Sheet open={optionsOpen} onOpenChange={setOptionsOpen}>
         <SheetContent side="bottom" title="Chat options" className="mx-auto max-w-2xl">
           <div className="space-y-6 overflow-y-auto p-6">
-            <div role="group" aria-label="Conversation mode" className="space-y-1">
+            <div role="group" aria-label="Tools" className="space-y-1">
               {(
                 [
                   {
-                    value: "chat",
-                    title: "Chat",
-                    description: "Ask a question or talk something through",
-                    icon: MessageSquare,
+                    value: "search",
+                    title: "Web search",
+                    description: "Search the web for a quick answer with sources",
+                    icon: Search,
                   },
                   {
                     value: "research",
@@ -882,7 +884,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
                   type="button"
                   aria-pressed={mode === item.value}
                   onClick={() => {
-                    setMode(item.value);
+                    setMode(mode === item.value ? "chat" : item.value);
                     setOptionsOpen(false);
                     inputRef.current?.focus();
                   }}

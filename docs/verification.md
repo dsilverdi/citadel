@@ -74,3 +74,42 @@ Migration `0003_research_clarifications.sql` was applied locally only. All 43 un
 Applied migrations `0002_conversation_deletions.sql` and `0003_research_clarifications.sql` to `lyra-production`; the final remote check confirms no pending migrations. `pnpm check` passed, including formatting, lint, all workspace typechecks, 43 unit tests, and client/Worker build. The 14 desktop/mobile browser scenarios passed during feature validation. A separate production build was checked against source bindings and resolved paths; local auth bypass and mock AI are absent. Both required runtime secrets remain configured.
 
 Published Worker version `1fa40deb-610d-4f13-ad3f-7e9718897913` at https://lyra.dsilverdi.workers.dev with the production research Workflow and five-minute cron. HTTPS returns HTTP 302 to `dsilverdi.cloudflareaccess.com`. Signed-in production clarification, live model question quality, and deletion remain a user smoke test; no live OpenAI requests or production conversation deletions were performed during release verification.
+
+## Chat tools and mobile tables — 2026-10-18
+
+Regular chat is now the default. The tools sheet offers Web search and Deep research;
+the selected tool can be dismissed from the composer. Web search uses a single
+cited model response with at most three tool calls, retaining normal run recovery
+without planning, clarification, synthesis, or report export. Search is persisted
+as an additive boolean on chat runs. Migration `0004_chat_web_search.sql` was applied
+locally and must be applied remotely before deploying this change.
+
+Formatting, lint, Lyra TypeScript checks, 44 unit tests, and client/Worker builds
+passed. All 18 desktop/mobile browser scenarios passed across the full run and a
+targeted rerun of the table check after adding a layout readiness wait. Coverage
+includes cited search replies, sources surviving refresh, rejection of submission
+ID reuse with a different tool selection, and no research plan/report for search.
+The mobile table check verifies internal horizontal scrolling and no document
+width overflow. A mobile screenshot was inspected. Existing research approval,
+clarification, cancellation, deletion, and PWA scenarios also passed.
+
+Browser AI responses were deterministic local samples. No live OpenAI calls,
+remote migration, deployment, commit, or push were performed for this iteration.
+
+## Chat tools production release — verified 2026-10-20
+
+Published Worker version `10f10d7d-bfe8-430f-8257-59caa06063ad` on 2026-10-18
+at https://lyra.dsilverdi.workers.dev after `pnpm check` passed (formatting,
+lint, all workspace types, 44 unit tests, and client/Worker builds). The 18
+desktop/mobile browser scenarios passed during feature validation. A separate
+production build was verified against the configured database, private R2 bucket,
+Access/Gateway vars, Workflow, asset directory, and five-minute cron. Demo mode
+and local authentication bypass are absent from the production configuration.
+Both required runtime secret names were verified without reading their values.
+
+Migration `0004_chat_web_search.sql` was applied to `lyra-production` before
+publication. On resuming release verification on 2026-10-20, Wrangler confirmed
+this version is serving 100% of traffic and no migrations remain pending. HTTPS
+returns HTTP 302 to `dsilverdi.cloudflareaccess.com`. Signed-in live web search,
+citations, source persistence, and phone table scrolling remain a user smoke
+test; no live OpenAI calls were made during release verification.

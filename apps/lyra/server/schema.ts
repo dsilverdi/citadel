@@ -18,6 +18,7 @@ export const runs = sqliteTable("runs", {
     .notNull()
     .references(() => conversations.id, { onDelete: "cascade" }),
   mode: text("mode").notNull(),
+  webSearch: integer("web_search", { mode: "boolean" }).notNull().default(false),
   status: text("status").notNull(),
   settings: text("settings").notNull(),
   input: text("input").notNull(),

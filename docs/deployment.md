@@ -75,3 +75,17 @@ Deleting a chat removes its application history and private R2 exports. Provider
 Apply `0003_research_clarifications.sql` before publishing the clarification feature (and `0002_conversation_deletions.sql` if not already applied). Pending questions and submitted answers persist in D1 and cascade with conversation deletion. The owner-only, same-origin `POST /api/conversations/:id/clarifications/:id/answer` route requires one answer per question, accepts custom text, rejects replaced questions, and uses a stable submission ID to avoid duplicate planning runs. Answers preserve the original model/effort and create another planning run, never an approved research run. Closing the popup preserves the pending questions; unsubmitted selections are held in the current page only.
 
 For a signed-in smoke test, submit a broad research brief, choose a recommendation and a custom answer, then confirm the resulting plan reflects those choices before approving research. Also verify that a sufficiently specific brief can proceed directly to a plan. Local demo mode uses a fixed clarification fixture for “Help me explore business ideas”; live question wording and relevance come from the selected model.
+
+## Web search in chat
+
+Apply `0004_chat_web_search.sql` before deploying chat web search. This adds a
+`web_search` flag to existing chat runs, defaulting to off for previous runs. No
+additional provider key is required: search uses the existing OpenAI/Gateway
+configuration. The normal production migration command applies this alongside
+any other pending migrations.
+
+For a signed-in smoke test, select Web search in Chat options, ask for current
+information, and verify the reply includes working citations and a sources list.
+Refresh the conversation and confirm the sources remain. This path should create
+no research plan or report. Dismiss the tool chip to return to regular chat, and
+verify a wide table scrolls horizontally on a phone without widening the page.

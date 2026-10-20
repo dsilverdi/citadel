@@ -13,7 +13,7 @@ export function Markdown({ children }: { children: string }) {
             </a>
           ),
           table: ({ children: rows }) => (
-            <div className="overflow-x-auto">
+            <div className="markdown-table-scroll" role="region" aria-label="Table" tabIndex={0}>
               <table>{rows}</table>
             </div>
           ),

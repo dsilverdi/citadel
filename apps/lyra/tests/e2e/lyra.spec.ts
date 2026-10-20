@@ -5,6 +5,8 @@ test("clarifies research intent with options and custom answers before plan appr
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Chat options", exact: true }).click();
+  await page.getByRole("button", { name: /Deep research Review a plan/ }).click();
   await page.getByRole("textbox", { name: "Message Lyra" }).fill("Help me explore business ideas");
   await page.getByRole("button", { name: "Send message" }).click();
   let dialog = page.getByRole("dialog", { name: "Shape your research", exact: true });
@@ -76,8 +78,6 @@ test("confirms deletion, removes history, and protects the delete endpoint", asy
   isMobile,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Chat options", exact: true }).click();
-  await page.getByRole("button", { name: "Chat Ask a question or talk something through" }).click();
   const title = `Disposable chat ${crypto.randomUUID()}`;
   await page.getByRole("textbox", { name: "Message Lyra" }).fill(title);
   await page.getByRole("button", { name: "Send message" }).click();
@@ -123,6 +123,8 @@ test("research requires approval, preserves settings, and restores after refresh
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "What would you like to know?" })).toBeVisible();
   await expect(page.getByText("Local demo", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Chat options", exact: true }).click();
+  await page.getByRole("button", { name: /Deep research Review a plan/ }).click();
   await page.getByRole("button", { name: "Model settings" }).click();
   await page.getByLabel("Model", { exact: true }).selectOption("gpt-6-astra");
   await page.getByLabel("Thinking effort", { exact: true }).selectOption("high");
@@ -167,8 +169,6 @@ test("supports chat, revision, duplicate submission, and stale approval rejectio
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Chat options", exact: true }).click();
-  await page.getByRole("button", { name: "Chat Ask a question or talk something through" }).click();
   await page.getByRole("textbox", { name: "Message Lyra" }).fill("Hello Lyra");
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(
@@ -220,6 +220,8 @@ test("supports chat, revision, duplicate submission, and stale approval rejectio
 
 test("stops research and retains completed evidence", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Chat options", exact: true }).click();
+  await page.getByRole("button", { name: /Deep research Review a plan/ }).click();
   await page
     .getByRole("textbox", { name: "Message Lyra" })
     .fill("Research Cloudflare deployment options");
@@ -238,4 +240,73 @@ test("stops research and retains completed evidence", async ({ page }) => {
   expect(result.messages.at(-1)?.sources.length).toBeGreaterThan(0);
   await page.reload();
   await expect(page.getByRole("heading", { name: "Partial research" })).toBeVisible();
+});
+
+test("web search returns a cited reply without research planning", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Chat options", exact: true }).click();
+  await expect(
+    page.getByRole("group", { name: "Tools", exact: true }).getByRole("button"),
+  ).toHaveCount(2);
+  await page.getByRole("button", { name: /Web search Search the web/ }).click();
+  await page
+    .getByRole("textbox", { name: "Message Lyra" })
+    .fill("Search for Cloudflare Workers documentation");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByRole("link", { name: "Cloudflare", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "1 sources", exact: true })).toBeVisible();
+  const id = new URL(page.url()).searchParams.get("c")!;
+  const snapshot = (await (await page.request.get(`/api/conversations/${id}`)).json()) as Snapshot;
+  expect(snapshot.runs).toHaveLength(1);
+  expect(snapshot.runs[0]?.mode).toBe("chat");
+  expect(snapshot.runs[0]?.webSearch).toBe(true);
+  expect(snapshot.runs[0]?.usage.toolCalls).toBe(1);
+  expect(snapshot.plans).toHaveLength(0);
+  expect(snapshot.clarifications).toHaveLength(0);
+  expect(snapshot.runs[0]?.reportReady).toBe(false);
+  await page.reload();
+  await expect(page.getByRole("link", { name: "Cloudflare", exact: true })).toBeVisible();
+  const headers = { origin: new URL(page.url()).origin };
+  const run = snapshot.runs[0]!;
+  expect(
+    (
+      await page.request.post(`/api/conversations/${id}/messages`, {
+        headers,
+        data: {
+          id: run.id,
+          content: "Search for Cloudflare Workers documentation",
+          mode: "chat",
+          settings: run.settings,
+        },
+      })
+    ).status(),
+  ).toBe(409);
+});
+
+test("wide tables scroll within the message on mobile", async ({ page, isMobile }) => {
+  await page.goto("/");
+  await page
+    .getByRole("textbox", { name: "Message Lyra" })
+    .fill(
+      "| Product | Description | Market | Demand | Timeline |\n| --- | --- | --- | --- | --- |\n| Example product | A readable description of the product and its use cases | Indonesia | Growing interest | Next twelve months |",
+    );
+  await page.getByRole("button", { name: "Send message" }).click();
+  const region = page.getByRole("region", { name: "Table", exact: true });
+  await expect(region).toBeVisible();
+  if (isMobile) {
+    await expect.poll(() => region.evaluate((element) => element.clientWidth)).toBeGreaterThan(0);
+    const sizes = await region.evaluate((element) => {
+      element.scrollLeft = 100;
+      return {
+        width: element.clientWidth,
+        content: element.scrollWidth,
+        offset: element.scrollLeft,
+        pageWidth: document.documentElement.scrollWidth,
+        viewport: window.innerWidth,
+      };
+    });
+    expect(sizes.content).toBeGreaterThan(sizes.width);
+    expect(sizes.offset).toBeGreaterThan(0);
+    expect(sizes.pageWidth).toBeLessThanOrEqual(sizes.viewport);
+  }
 });

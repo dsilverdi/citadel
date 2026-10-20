@@ -49,3 +49,13 @@ Lyra is an installable PWA. After HTTPS deployment, use **Install Lyra** in the 
 ## Boundaries
 
 Lyra v1 is single-owner web research. It does not include file uploads, private connectors, public signup, billing, or offline execution. Research continues on the server when the browser closes. OpenAI background responses are explicitly stored to support recovery; Citadel stores its own history in D1. Review provider retention settings before putting sensitive material into prompts.
+
+Lyra starts with regular chat. Use **Chat options** to enable **Web search** for a quick,
+cited answer (up to three search calls in one model response), or **Deep research**
+for scope clarification, plan approval, and a multi-step report. Tap the selected tool
+in the composer to return to regular chat. Web search uses OpenAI's built-in search
+through the existing gateway and does not require another data-provider credential.
+Search replies retain the existing durable run tracking, cancellation, and source
+storage; they do not enter the research planning or report pipeline. Search tool
+usage is billed separately by the provider. Wide Markdown tables scroll horizontally
+within the message on mobile.

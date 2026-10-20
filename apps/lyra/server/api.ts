@@ -213,7 +213,8 @@ export async function api(
         existing.conversationId !== conversationId ||
         existing.input !== body.content ||
         existing.settings !== JSON.stringify(body.settings) ||
-        existing.mode !== (body.mode === "research" ? "plan" : "chat")
+        existing.mode !== (body.mode === "research" ? "plan" : "chat") ||
+        existing.webSearch !== (body.mode === "search")
       )
         throw new AppError(409, "Submission ID already used");
       if (existing.status === "queued") ctx.waitUntil(dispatchRun(env, existing.id));
@@ -223,7 +224,7 @@ export async function api(
     try {
       await env.DB.batch([
         env.DB.prepare(
-          "INSERT INTO runs (id, conversation_id, mode, status, settings, input, created_at, deadline) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?)",
+          "INSERT INTO runs (id, conversation_id, mode, status, settings, input, created_at, deadline, web_search) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?)",
         ).bind(
           body.id,
           conversationId,
@@ -232,6 +233,7 @@ export async function api(
           body.content,
           now,
           now + 30 * 60_000,
+          body.mode === "search" ? 1 : 0,
         ),
         env.DB.prepare(
           "UPDATE conversations SET title = CASE WHEN NOT EXISTS (SELECT 1 FROM messages WHERE conversation_id = ? AND role = 'user') THEN ? ELSE title END, settings = ?, updated_at = ? WHERE id = ?",

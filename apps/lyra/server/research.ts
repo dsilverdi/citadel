@@ -178,7 +178,11 @@ export async function executeRun(env: Env, runId: string, workflow: WorkflowStep
         run,
         "chat",
         {
-          instructions,
+          instructions: run.webSearch
+            ? `${instructions} Today is ${new Date(run.createdAt).toISOString().slice(0, 10)} (UTC). Use web search when needed to answer the current question. Prefer primary sources and cite factual findings with links. Give a direct, concise answer; do not prepare a research plan or a long report. Stay within 3 search calls. If evidence is unavailable, say so.`
+            : instructions,
+          search: run.webSearch,
+          toolBudget: 3,
           input: context,
           live: (text) => notify(env, run.conversationId, { type: "delta", runId, text }),
         },

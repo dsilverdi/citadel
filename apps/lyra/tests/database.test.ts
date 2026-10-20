@@ -7,6 +7,9 @@ describe("D1 migration invariants", () => {
   beforeEach(() => {
     db = new DatabaseSync(":memory:");
     db.exec(readFileSync(new URL("../migrations/0001_initial.sql", import.meta.url), "utf8"));
+    db.exec(
+      readFileSync(new URL("../migrations/0004_chat_web_search.sql", import.meta.url), "utf8"),
+    );
     db.prepare("INSERT INTO conversations VALUES (?, ?, ?, ?, ?, ?)").run(
       "c",
       "owner",
@@ -19,6 +22,12 @@ describe("D1 migration invariants", () => {
   afterEach(() => db.close());
   const insert =
     "INSERT INTO runs (id, conversation_id, mode, status, settings, input, plan_id, created_at, deadline) VALUES (?, 'c', 'research', ?, '{}', 'question', ?, 0, 100)";
+  it("defaults and bounds the chat search flag", () => {
+    db.prepare(insert).run("r1", "completed", null);
+    expect(db.prepare("SELECT web_search FROM runs WHERE id = 'r1'").get()?.web_search).toBe(0);
+    db.exec("UPDATE runs SET web_search = 1 WHERE id = 'r1'");
+    expect(() => db.exec("UPDATE runs SET web_search = 2 WHERE id = 'r1'")).toThrow();
+  });
   it("serializes active runs, including uncertain provider submissions", () => {
     db.prepare(insert).run("r1", "uncertain", null);
     expect(() => db.prepare(insert).run("r2", "queued", null)).toThrow();

@@ -5,7 +5,7 @@ export const idSchema = z.string().uuid();
 export const submissionSchema = z.object({
   id: idSchema,
   content: z.string().trim().min(1).max(24_000),
-  mode: z.enum(["chat", "research"]),
+  mode: z.enum(["chat", "search", "research"]),
   settings: settingsSchema,
 });
 export const approvalSchema = z.object({ id: idSchema });
@@ -148,6 +148,7 @@ export interface Run {
   id: string;
   conversationId: string;
   mode: "chat" | "plan" | "research";
+  webSearch: boolean;
   status: RunStatus;
   settings: ModelSettings;
   usage: Usage;

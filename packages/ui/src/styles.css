@@ -153,16 +153,25 @@
     border-left: 2px solid var(--primary);
     color: var(--muted-foreground);
   }
+  .markdown-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
   .markdown table {
     border-collapse: collapse;
     font-size: 0.85rem;
     margin: 1rem 0;
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
+    overflow-wrap: normal;
   }
   .markdown th,
   .markdown td {
     border: 1px solid var(--border);
     padding: 0.6rem 0.8rem;
+    min-width: 10rem;
+    max-width: 28rem;
     text-align: left;
   }
   .markdown th {

@@ -54,6 +54,7 @@ export function runView(env: Env, row: RunRow): Run {
     id: row.id,
     conversationId: row.conversationId,
     mode: row.mode as Run["mode"],
+    webSearch: row.webSearch,
     status: row.status as RunStatus,
     settings,
     usage,
