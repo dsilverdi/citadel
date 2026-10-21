@@ -1,3 +1,5 @@
+import { enqueueDispatch } from "./dispatch-queue";
+import { dispatchWorkflow } from "./workflow-dispatch";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { models, settingsSchema, defaultSettings } from "@citadel/ai/models";
 import type { Identity } from "@citadel/auth";
@@ -64,16 +66,45 @@ async function readBody(request: Request): Promise<unknown> {
   }
 }
 export async function dispatchRun(env: Env, runId: string) {
+  const run = await getRun(env, runId);
+  if (run.status !== "queued") return;
   try {
-    await env.RESEARCH.create({ id: runId, params: { runId } });
-  } catch (error) {
-    // Workflow IDs are stable. A duplicate delivery must not launch a second job.
-    try {
-      const existing = await env.RESEARCH.get(runId);
-      await existing.status();
-    } catch {
-      throw error;
-    }
+    await dispatchWorkflow(env.RESEARCH, runId, (details) => {
+      console.warn("Lyra workflow dispatch attempt failed", { runId, ...details });
+    });
+  } catch {
+    // Keep the saved run queued: a retry uses its original ID, never a new job.
+    console.error("Lyra workflow dispatch failed", { runId, code: "workflow_start_unconfirmed" });
+    const latest = await getRun(env, runId);
+    if (latest.status !== "queued") return;
+    await progress(
+      env,
+      latest,
+      "dispatch_failed",
+      "Your request is saved, but startup could not be confirmed. Retry start, or wait for automatic recovery.",
+    );
+    throw new Error("WorkflowDispatchUnavailable");
+  }
+}
+export async function enqueueRun(env: Env, runId: string) {
+  const run = await getRun(env, runId);
+  if (run.status !== "queued" || run.deadline <= Date.now()) return;
+  try {
+    // Await durable queue acceptance, never Workflow startup in the HTTP lifecycle.
+    await enqueueDispatch(env.RUN_DISPATCH, runId);
+  } catch {
+    console.error("Lyra dispatch queue handoff unconfirmed", {
+      runId,
+      code: "queue_handoff_unconfirmed",
+    });
+    const latest = await getRun(env, runId);
+    if (latest.status === "queued")
+      await progress(
+        env,
+        latest,
+        "dispatch_failed",
+        "Your request is saved, but queue delivery could not be confirmed. Retry start, or wait for automatic recovery.",
+      );
   }
 }
 export async function listConversations(env: Env, owner: string) {
@@ -155,7 +186,7 @@ export async function api(
         prior.conversationId !== conversationId
       )
         throw new AppError(409, "Submission ID already used");
-      if (prior.status === "queued") ctx.waitUntil(dispatchRun(env, prior.id));
+      if (prior.status === "queued") await enqueueRun(env, prior.id);
       return json(runView(env, prior));
     }
     if (clarification.status !== "pending")
@@ -192,8 +223,10 @@ export async function api(
         .where(eq(clarifications.id, clarificationId))
         .get();
       const repeated = await db.select().from(runs).where(eq(runs.id, body.id)).get();
-      if (saved?.answerRunId === body.id && repeated?.input === content)
+      if (saved?.answerRunId === body.id && repeated?.input === content) {
+        if (repeated.status === "queued") await enqueueRun(env, repeated.id);
         return json(runView(env, repeated));
+      }
       throw new AppError(
         409,
         "A request is active or these questions changed. Refresh before continuing.",
@@ -201,7 +234,7 @@ export async function api(
     }
     const created = await db.select().from(runs).where(eq(runs.id, body.id)).get();
     if (!created) throw new AppError(409, "These questions have been replaced. Refresh the chat.");
-    ctx.waitUntil(dispatchRun(env, created.id).catch(() => undefined));
+    await enqueueRun(env, created.id);
     await notify(env, conversationId);
     return json(runView(env, created), 202);
   }
@@ -217,7 +250,7 @@ export async function api(
         existing.webSearch !== (body.mode === "search")
       )
         throw new AppError(409, "Submission ID already used");
-      if (existing.status === "queued") ctx.waitUntil(dispatchRun(env, existing.id));
+      if (existing.status === "queued") await enqueueRun(env, existing.id);
       return json(runView(env, existing));
     }
     const now = Date.now();
@@ -264,7 +297,7 @@ export async function api(
         throw new AppError(409, "A run is already active. Stop it before sending another message.");
       throw error;
     }
-    ctx.waitUntil(dispatchRun(env, body.id).catch(() => undefined));
+    await enqueueRun(env, body.id);
     await notify(env, conversationId);
     return json(runView(env, await getRun(env, body.id)), 202);
   }
@@ -285,7 +318,7 @@ export async function api(
     if (!plan) throw new AppError(404, "Plan not found");
     const prior = await db.select().from(runs).where(eq(runs.planId, planId)).get();
     if (prior) {
-      if (prior.status === "queued") ctx.waitUntil(dispatchRun(env, prior.id));
+      if (prior.status === "queued") await enqueueRun(env, prior.id);
       return json(runView(env, prior));
     }
     if (plan.status !== "pending")
@@ -311,7 +344,10 @@ export async function api(
       ]);
     } catch (error) {
       const duplicate = await db.select().from(runs).where(eq(runs.planId, planId)).get();
-      if (duplicate) return json(runView(env, duplicate));
+      if (duplicate) {
+        if (duplicate.status === "queued") await enqueueRun(env, duplicate.id);
+        return json(runView(env, duplicate));
+      }
       const active = await db
         .select()
         .from(runs)
@@ -326,13 +362,17 @@ export async function api(
         409,
         "The plan changed before approval. Refresh and review the latest plan.",
       );
-    ctx.waitUntil(dispatchRun(env, id).catch(() => undefined));
+    await enqueueRun(env, id);
     await notify(env, conversationId);
     return json(runView(env, created), 202);
   }
   if (path[3] === "runs" && path[4]) {
     const run = await getRun(env, idSchema.parse(path[4]));
     if (run.conversationId !== conversationId) throw new AppError(404, "Run not found");
+    if (path[5] === "retry-start" && path.length === 6 && request.method === "POST") {
+      if (run.status === "queued") await enqueueRun(env, run.id);
+      return json(runView(env, await getRun(env, run.id)));
+    }
     if (path[5] === "cancel" && path.length === 6 && request.method === "POST") {
       if (activeStatuses.includes(run.status as (typeof activeStatuses)[number])) {
         await db

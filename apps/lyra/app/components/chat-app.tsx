@@ -218,6 +218,7 @@ export function ChatApp({ initial }: { initial: Initial }) {
     history.pushState(null, "", id ? `/?c=${id}` : "/");
   }
   const active = current?.runs.findLast(busy);
+  const activeEvent = current?.events.filter((event) => event.runId === active?.id).at(-1);
   const currentClarification = current?.clarifications?.findLast(
     (item) => item.status === "pending",
   );
@@ -282,6 +283,19 @@ export function ChatApp({ initial }: { initial: Initial }) {
       await refresh();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Unable to approve the plan.");
+    } finally {
+      setSending(false);
+    }
+  }
+  async function retryStart() {
+    if (!active || !selected || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      await request(`/api/conversations/${selected}/runs/${active.id}/retry-start`, {});
+      await refresh();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Unable to retry startup.");
     } finally {
       setSending(false);
     }
@@ -654,18 +668,28 @@ export function ChatApp({ initial }: { initial: Initial }) {
                       )}
                       {active.status === "uncertain"
                         ? "Submission needs attention"
-                        : active.mode === "research"
-                          ? "Researching…"
-                          : active.mode === "plan"
-                            ? "Preparing your research plan…"
-                            : "Thinking…"}
+                        : active.status === "queued"
+                          ? "Waiting to start…"
+                          : active.mode === "research"
+                            ? "Researching…"
+                            : active.mode === "plan"
+                              ? "Preparing your research plan…"
+                              : "Thinking…"}
                     </div>
                     <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      {active.error ||
-                        current.events.filter((event) => event.runId === active.id).at(-1)
-                          ?.message ||
-                        "Your request is queued."}
+                      {active.error || activeEvent?.message || "Your request is queued."}
                     </p>
+                    {active.status === "queued" && activeEvent?.kind === "dispatch_failed" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-3"
+                        disabled={sending}
+                        onClick={() => void retryStart()}
+                      >
+                        {sending ? "Retrying…" : "Retry start"}
+                      </Button>
+                    )}
                     {active.mode === "research" && (
                       <p className="mt-3 text-[10px] text-muted-foreground/70">
                         Research continues when you leave this page.

@@ -40,11 +40,18 @@ Check secret names only. Do not read saved OAuth credentials, print tokens, or r
 
 If OAuth expired, try a legitimate refresh; if browser authorization is needed, use `wrangler login` and wait for completion. If automated login fails with `request_forbidden` or a CSRF error, have the user log in from their terminal. Never reuse an OAuth URL after its callback process exits. Distinguish network, expired-auth, and permissions errors; follow session escalation policy instead of repeatedly retrying a blocked command. A Cloudflare plugin connection does not automatically authenticate Wrangler.
 
-For routine releases, reuse the configured D1 ID, Access audience, bucket, Gateway, and secrets. Provision only missing resources in the authorized environment. Inspect existing resources first; after a partial failure, resume only the missing step. Never rerun `scripts/provision.mjs --apply` against an existing configured database or create replacements to resolve a deployment error.
+For routine releases, reuse the configured D1 ID, Access audience, bucket, Gateway, dispatch Queue, and secrets. Provision only missing resources in the authorized environment. Inspect existing resources first; after a partial failure, resume only the missing step. Never rerun `scripts/provision.mjs --apply` against an existing configured database or create replacements to resolve a deployment error.
 
 ## Validate and publish
 
 Install with `pnpm install --frozen-lockfile` when dependencies need installation. Run `pnpm check` (formatting, lint, types, tests, build). Run Playwright when changes affect user flows, authentication, reconnect, or PWA behavior and local services/browser are available. Report unavailable checks accurately. Fix failed required checks before publishing.
+
+Before deploying the durable dispatch architecture for the first time, inspect
+`wrangler queues list` and create `lyra-production-dispatch` only if missing
+(`lyra-staging-dispatch` for staging). The current config requires the `RUN_DISPATCH`
+producer binding and queue consumer. Existing production did not originally have
+this Queue. Follow `docs/deployment.md`; do not rerun database provisioning to add
+it. Confirm the Queue binding/consumer after publication.
 
 Apply migrations and deploy sequentially:
 

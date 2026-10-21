@@ -67,6 +67,44 @@ describe("provider submissions across Workflow serialization", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("submits polling-only research as JSON without opening and cancelling a stream", async () => {
+    const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const body = JSON.parse(init?.body as string);
+      expect(body).toMatchObject({ background: true, stream: false, store: true });
+      return Response.json({ id: "resp_background", status: "queued" });
+    });
+    const result = await submitResponse(client(fetch), {
+      model: "gpt-6.1-sol",
+      input: "Research edge hosting",
+      background: true,
+      stream: false,
+      store: true,
+    });
+    expect(submittedResponseId(JSON.parse(JSON.stringify(result)))).toBe("resp_background");
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a missing JSON response ID uncertain without resubmission", async () => {
+    const fetch = vi.fn(async () => Response.json({ status: "queued" }));
+    await expect(
+      submitResponse(client(fetch), { background: true, stream: false }),
+    ).rejects.toBeInstanceOf(UncertainSubmission);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves actionable rejection details for JSON background submissions", async () => {
+    const fetch = vi.fn(async () =>
+      Response.json(
+        { error: { code: "unsupported_value", param: "tools", message: "private content" } },
+        { status: 400 },
+      ),
+    );
+    const result = await submitResponse(client(fetch), { stream: false });
+    expect(() => submittedResponseId(result)).toThrow("parameter: tools");
+    expect(JSON.stringify(result)).not.toContain("private content");
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("recovers the response ID from a real SDK event stream", async () => {
     const fetch = vi.fn(
       async () =>

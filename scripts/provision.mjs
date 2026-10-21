@@ -11,6 +11,7 @@ const name = `lyra-${environment}`;
 const commands = [
   ["d1", "create", name],
   ["r2", "bucket", "create", `${name}-reports`],
+  ["queues", "create", `${name}-dispatch`],
 ];
 if (!process.argv.includes("--apply")) {
   console.log(
@@ -46,9 +47,11 @@ if (!process.argv.includes("--apply")) {
     );
   config.env[environment].d1_databases[0].database_id = id;
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
-  execFileSync("pnpm", ["--filter", "@citadel/lyra", "exec", "wrangler", ...commands[1]], {
-    stdio: "inherit",
-  });
+  for (const command of commands.slice(1)) {
+    execFileSync("pnpm", ["--filter", "@citadel/lyra", "exec", "wrangler", ...command], {
+      stdio: "inherit",
+    });
+  }
   console.log(
     "Resources created. Configure Access, AI Gateway, and the deployment hostname before deploying. See docs/deployment.md.",
   );

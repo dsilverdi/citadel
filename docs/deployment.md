@@ -89,3 +89,51 @@ information, and verify the reply includes working citations and a sources list.
 Refresh the conversation and confirm the sources remain. This path should create
 no research plan or report. Dismiss the tool chip to return to regular chat, and
 verify a wide table scrolls horizontally on a phone without widening the page.
+
+## Durable Workflow dispatch
+
+D1 queued runs are the durable outbox. Submitting chat, scope answers, or research
+approval saves the run before publishing `{runId}` to a Cloudflare Queue. The HTTP
+request awaits queue acceptance with a four-second budget; it never creates a
+Workflow in post-response `waitUntil` work. If queue acknowledgement is lost, the
+run remains queued and manual retry or the five-minute cron republishes the same
+ID. D1 and Queue publication are not a single transaction, so this recovery path
+is required. Duplicate messages are expected and safe.
+
+The Queue consumer skips deleted, canceled, completed, running, or expired runs.
+For eligible queued runs it creates the Workflow under the saved run ID, confirms
+an existing instance after ambiguous acknowledgement, and acknowledges the Queue
+message only when dispatch is confirmed. Creation/status calls have four-second
+budgets, with at most two creation attempts per delivery. The Queue retries failed
+deliveries with a bounded delay (up to 60 seconds), five retries, batch size one,
+and a one-second batching timeout. If delivery retries are exhausted, the saved
+D1 run remains available to cron recovery until its normal deadline. No provider
+response creation is retried by this dispatch mechanism.
+
+Startup failures record `dispatch_failed` events. The UI distinguishes Waiting to
+start from active planning/research and offers Retry start through the owner-only,
+same-origin `POST /api/conversations/:id/runs/:id/retry-start` route. Logs include
+run ID, stage, attempt, validated exception name and HTTP status when available;
+raw exceptions, prompts, headers and credentials are excluded.
+
+Before deploying this architecture, inspect existing queues, then create the
+missing queue for the target environment:
+
+```bash
+pnpm --filter @citadel/lyra exec wrangler queues list
+pnpm --filter @citadel/lyra exec wrangler queues create lyra-production-dispatch
+```
+
+Use `lyra-staging-dispatch` for staging. Do not recreate a queue that already
+exists or rerun database provisioning on an existing environment. Wrangler config
+binds `RUN_DISPATCH` and the same Worker's queue consumer separately for each
+environment. Local development emulates `lyra-local-dispatch` without provisioning
+remote resources. Fresh-environment `scripts/provision.mjs` includes queue creation.
+
+On 2026-10-20, Cloudflare Workers observability recorded a clarification-answer
+request returning 202 with a runtime warning that its waitUntil tasks exceeded the
+post-response allowance and were canceled (invocation wall time 30,606 ms). D1
+saved the request at 12:32:30 UTC, but the Workflow was only created at 12:35:30 UTC.
+This confirms the old background dispatch exceeded the response-lifecycle budget;
+the underlying reason that the creation RPC stalled is not established by those
+logs. Queue consumers execute and retry independently of the submitting request.

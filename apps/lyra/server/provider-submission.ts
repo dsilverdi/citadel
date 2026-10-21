@@ -54,6 +54,16 @@ export async function submitResponse(
 ): Promise<Submission> {
   let stream: AsyncIterable<ProviderEvent>;
   try {
+    if (body.stream === false) {
+      // A normal background acknowledgement avoids closing an SSE connection at
+      // response.created, before the provider has started the queued work.
+      const response = await client.post<{ id?: string }>("/responses", { body });
+      if (!response.id)
+        throw new UncertainSubmission(
+          "OpenAI did not confirm a response ID. The request may have been accepted.",
+        );
+      return { responseId: response.id };
+    }
     stream = await client.post<AsyncIterable<ProviderEvent>>("/responses", {
       stream: true,
       body,

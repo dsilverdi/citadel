@@ -7,6 +7,7 @@ export interface Env extends AIEnvironment, AuthEnvironment {
   DB: D1Database;
   REPORTS: R2Bucket;
   ConversationAgent: DurableObjectNamespace<ConversationAgent>;
+  RUN_DISPATCH: Queue<import("./dispatch-queue").DispatchMessage>;
   RESEARCH: Workflow<{ runId: string }>;
   MOCK_AI?: string;
   MODEL_PRICING_JSON?: string;

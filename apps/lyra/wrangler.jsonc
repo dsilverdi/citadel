@@ -6,10 +6,23 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
-  "assets": { "binding": "ASSETS", "directory": "build/client", "run_worker_first": true },
-  "observability": { "enabled": true, "head_sampling_rate": 1 },
-  "triggers": { "crons": ["*/5 * * * *"] },
-  "vars": { "APP_ENV": "local", "LOCAL_AUTH_BYPASS": "true", "MOCK_AI": "true" },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "build/client",
+    "run_worker_first": true,
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+  "triggers": {
+    "crons": ["*/5 * * * *"],
+  },
+  "vars": {
+    "APP_ENV": "local",
+    "LOCAL_AUTH_BYPASS": "true",
+    "MOCK_AI": "true",
+  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -18,13 +31,32 @@
       "migrations_dir": "migrations",
     },
   ],
-  "r2_buckets": [{ "binding": "REPORTS", "bucket_name": "lyra-local-reports" }],
+  "r2_buckets": [
+    {
+      "binding": "REPORTS",
+      "bucket_name": "lyra-local-reports",
+    },
+  ],
   "durable_objects": {
-    "bindings": [{ "name": "ConversationAgent", "class_name": "ConversationAgent" }],
+    "bindings": [
+      {
+        "name": "ConversationAgent",
+        "class_name": "ConversationAgent",
+      },
+    ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ConversationAgent"] }],
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ConversationAgent"],
+    },
+  ],
   "workflows": [
-    { "binding": "RESEARCH", "name": "lyra-local-research", "class_name": "ResearchWorkflow" },
+    {
+      "binding": "RESEARCH",
+      "name": "lyra-local-research",
+      "class_name": "ResearchWorkflow",
+    },
   ],
   "env": {
     "staging": {
@@ -45,9 +77,19 @@
           "migrations_dir": "migrations",
         },
       ],
-      "r2_buckets": [{ "binding": "REPORTS", "bucket_name": "lyra-staging-reports" }],
+      "r2_buckets": [
+        {
+          "binding": "REPORTS",
+          "bucket_name": "lyra-staging-reports",
+        },
+      ],
       "durable_objects": {
-        "bindings": [{ "name": "ConversationAgent", "class_name": "ConversationAgent" }],
+        "bindings": [
+          {
+            "name": "ConversationAgent",
+            "class_name": "ConversationAgent",
+          },
+        ],
       },
       "workflows": [
         {
@@ -56,6 +98,23 @@
           "class_name": "ResearchWorkflow",
         },
       ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "RUN_DISPATCH",
+            "queue": "lyra-staging-dispatch",
+          },
+        ],
+        "consumers": [
+          {
+            "queue": "lyra-staging-dispatch",
+            "max_batch_size": 1,
+            "max_batch_timeout": 1,
+            "max_retries": 5,
+            "retry_delay": 5,
+          },
+        ],
+      },
     },
     "production": {
       "name": "lyra",
@@ -76,9 +135,19 @@
           "migrations_dir": "migrations",
         },
       ],
-      "r2_buckets": [{ "binding": "REPORTS", "bucket_name": "lyra-production-reports" }],
+      "r2_buckets": [
+        {
+          "binding": "REPORTS",
+          "bucket_name": "lyra-production-reports",
+        },
+      ],
       "durable_objects": {
-        "bindings": [{ "name": "ConversationAgent", "class_name": "ConversationAgent" }],
+        "bindings": [
+          {
+            "name": "ConversationAgent",
+            "class_name": "ConversationAgent",
+          },
+        ],
       },
       "workflows": [
         {
@@ -87,6 +156,40 @@
           "class_name": "ResearchWorkflow",
         },
       ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "RUN_DISPATCH",
+            "queue": "lyra-production-dispatch",
+          },
+        ],
+        "consumers": [
+          {
+            "queue": "lyra-production-dispatch",
+            "max_batch_size": 1,
+            "max_batch_timeout": 1,
+            "max_retries": 5,
+            "retry_delay": 5,
+          },
+        ],
+      },
     },
+  },
+  "queues": {
+    "producers": [
+      {
+        "binding": "RUN_DISPATCH",
+        "queue": "lyra-local-dispatch",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "lyra-local-dispatch",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 5,
+        "retry_delay": 5,
+      },
+    ],
   },
 }

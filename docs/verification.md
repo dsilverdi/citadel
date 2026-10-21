@@ -113,3 +113,82 @@ this version is serving 100% of traffic and no migrations remain pending. HTTPS
 returns HTTP 302 to `dsilverdi.cloudflareaccess.com`. Signed-in live web search,
 citations, source persistence, and phone table scrolling remain a user smoke
 test; no live OpenAI calls were made during release verification.
+
+## Research queued after approval — 2026-10-20
+
+Read-only production metadata identified research run `09860068-9e2e-4f85-bacf-8e2bcf2b9403`
+as failed after approval. Its plan completed, dispatch and first provider submission
+succeeded, and a response ID was recorded. Saved Workflow diagnostics show 322
+successful polls, all returning provider status `queued`, followed by the 30-minute
+deadline. No completed step evidence or usage was saved. Zero recorded usage does
+not establish that the provider billed nothing. The Workflow itself reports success
+because the application catches and persists the failed run.
+
+The submission helper previously opened SSE for every background request and
+returned immediately at `response.created`, closing that stream. Non-live planning,
+research, and synthesis now use a normal JSON background acknowledgement and poll
+the recorded response ID. This removes a plausible early-disconnect trigger; the
+saved data cannot prove why the provider remained queued. Live chat streaming and
+replay of older Workflow submission results remain compatible. No ambiguous paid
+request is resubmitted automatically.
+
+The deadline handler now recognizes an expired persisted deadline even when
+Workflow exception wrapping loses the `ResearchLimit` class, recording `limited`
+and a timeout explanation rather than a generic configuration error. Existing
+production history has not been rewritten or restarted.
+
+All 47 unit tests passed, including real-SDK mocked HTTP tests of JSON background
+submission, missing IDs, rejection redaction, streaming compatibility, and no
+implicit retries. Lint and Lyra TypeScript passed. No live AI requests or production
+mutations were made for this investigation. The patch remains local and requires
+a small signed-in live research test after deployment to confirm the mitigation.
+
+## Research background submission release — 2026-10-20
+
+Published Worker version `dcbf69a6-8d65-4af6-af4d-2ce5fdce5424` at
+https://lyra.dsilverdi.workers.dev. `pnpm check` passed, including all workspace
+types, 47 unit tests, formatting, lint, and builds. All four desktop/mobile
+research approval, reconnect, and cancellation browser scenarios passed against
+local demo mode. Production had no pending migrations. Both runtime secrets
+were present; the separate production build was checked against source bindings,
+assets, Access/Gateway configuration, and disabled local bypass/mock AI.
+
+Wrangler confirmed the production research Workflow and five-minute cron.
+Post-deployment HTTPS returned HTTP 302 to `dsilverdi.cloudflareaccess.com`.
+The queued-after-approval mitigation and accurate deadline reporting are deployed;
+a new signed-in research request is needed to verify live provider execution.
+Existing failed runs were not restarted. No live AI calls, commit, or push were
+performed for this release.
+
+## Durable dispatch and preparation delay — 2026-10-20
+
+Cloudflare Workers observability confirmed the clarification-answer POST returned
+202 but its post-response waitUntil task was canceled after exceeding the runtime
+allowance (30,606 ms invocation wall time). D1 recorded the plan run at 12:32:30 UTC;
+its Workflow was created at 12:35:30 UTC and completed at 12:36:00 UTC. The actual
+Workflow execution took about 26 seconds. This supports cron recovery after an
+uncompleted initial dispatch, rather than three minutes of model planning. The
+original creation RPC's underlying stall remains unexplained; no claim is made
+that rate limiting, model speed, or plan complexity caused it.
+
+The replacement architecture uses queued D1 runs as a durable outbox and Cloudflare
+Queues for startup delivery. HTTP handlers await bounded Queue acceptance only.
+The consumer acknowledges after idempotent Workflow creation/lookup succeeds,
+retries failed messages, and skips runs which no longer need startup. D1 cron
+recovery covers the non-atomic D1-to-Queue handoff and exhausted delivery retries.
+All attempts reuse the saved Workflow ID; no provider submission is retried by
+this mechanism. Logs retain only validated diagnostic fields. The UI distinguishes
+Waiting to start from Preparing your research plan and offers Retry start when
+handoff or dispatch cannot be confirmed. Retry reuses the existing run ID and
+retains owner and same-origin authorization.
+
+New unit coverage exercises bounded operations, ambiguous creation confirmation,
+transient failures, stable-ID retries, safe diagnostic metadata, durable Queue
+acceptance, per-message acknowledgement/retry, duplicate delivery and malformed
+payload rejection. All 59 unit tests, lint, Lyra TypeScript, and client/Worker builds
+passed. All 20 desktop/mobile browser scenarios passed through local Queue/Workflow
+emulation, including queued startup retry, research clarification/approval,
+cancellation, web search, deletion, mobile tables, and PWA behavior. This change remains local: no production Queue was provisioned, no remote
+bindings were changed, and no new live AI requests or production deployment were
+performed. Provision `lyra-production-dispatch` before release, as documented in
+deployment instructions and the repository deployment skill.

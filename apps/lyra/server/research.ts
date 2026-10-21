@@ -313,7 +313,9 @@ export async function executeRun(env: Env, runId: string, workflow: WorkflowStep
         pending.some((entry) => entry.status === "creating");
       const stopped =
         error instanceof StoppedRun || (error instanceof Error && error.name === "StoppedRun");
+      const deadlineReached = Date.now() >= current.deadline;
       const limited =
+        deadlineReached ||
         error instanceof ResearchLimit ||
         (error instanceof Error && error.name === "ResearchLimit");
       const status = stopped
@@ -328,11 +330,13 @@ export async function executeRun(env: Env, runId: string, workflow: WorkflowStep
           ? error.message
           : status === "uncertain"
             ? "Provider submission could not be confirmed. It may still be billable. Cancel this run before submitting another request."
-            : limited && error instanceof Error
-              ? error.message
-              : status === "cancelled"
-                ? "Stopped. Partial findings are saved."
-                : "This run could not finish. Check model access and configuration, or try a new request. Partial findings are saved.";
+            : deadlineReached
+              ? "The run reached its 30 minute time limit while waiting for the AI provider. Partial findings are saved."
+              : limited && error instanceof Error
+                ? error.message
+                : status === "cancelled"
+                  ? "Stopped. Partial findings are saved."
+                  : "This run could not finish. Check model access and configuration, or try a new request. Partial findings are saved.";
       await database(env)
         .update(runs)
         .set({ status, error: message })

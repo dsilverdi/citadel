@@ -43,3 +43,13 @@ Cost estimates require explicit model rates in `MODEL_PRICING_JSON`; missing pri
 Context is bounded to the most recent 24 messages and 64,000 characters; the UI retains older messages, but they may not be included in a new model request. File search, retrieval indexing, generated code execution, private-source MCP connections, and multi-agent fan-out are deferred.
 
 Relevant upstream documentation: [Workers + React Router](https://developers.cloudflare.com/workers/framework-guides/web-apps/react-router/), [Agents + Workflows](https://developers.cloudflare.com/agents/concepts/workflows/), [OpenAI background mode](https://developers.openai.com/api/docs/guides/background), [OpenAI web search](https://developers.openai.com/api/docs/guides/tools-web-search).
+
+D1 queued runs serve as the durable dispatch outbox. The submitting HTTP request
+awaits Cloudflare Queue acceptance, bounded to four seconds, rather than creating
+a Workflow in post-response waitUntil work. The Queue consumer confirms Workflow
+creation with stable IDs before acknowledging each message. Retry delivery and
+cron republishing are safe because all paths reuse the saved run/Workflow ID.
+Unconfirmed handoff or dispatch records a queued failure with manual retry. The
+UI distinguishes queued startup from active planning or research. Canceled,
+deleted, expired, and already running runs are not restarted. This dispatch retry
+never creates another research run or retries a provider submission.

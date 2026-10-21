@@ -310,3 +310,71 @@ test("wide tables scroll within the message on mobile", async ({ page, isMobile 
     expect(sizes.pageWidth).toBeLessThanOrEqual(sizes.viewport);
   }
 });
+
+test("shows queued startup failure and retries the saved run", async ({ page }) => {
+  await page.goto("/");
+  const created = await page.request.post("/api/conversations", {
+    headers: { origin: new URL(page.url()).origin },
+  });
+  const { id } = (await created.json()) as { id: string };
+  const snapshot = (await (await page.request.get(`/api/conversations/${id}`)).json()) as Snapshot;
+  const runId = crypto.randomUUID();
+  snapshot.messages = [
+    {
+      id: `${runId}-user`,
+      conversationId: id,
+      runId,
+      role: "user",
+      content: "Research edge hosting",
+      sources: [],
+      createdAt: Date.now(),
+    },
+  ];
+  snapshot.runs = [
+    {
+      id: runId,
+      conversationId: id,
+      mode: "plan",
+      webSearch: false,
+      status: "queued",
+      settings: snapshot.conversation.settings,
+      usage: { inputTokens: 0, outputTokens: 0, toolCalls: 0 },
+      estimatedCost: null,
+      reportReady: false,
+      error: null,
+      createdAt: Date.now(),
+    },
+  ];
+  snapshot.events = [
+    {
+      id: 1,
+      runId,
+      kind: "dispatch_failed",
+      message: "Your request is saved, but startup could not be confirmed.",
+      createdAt: Date.now(),
+    },
+  ];
+  await page.route(`**/api/conversations/${id}`, (route) => route.fulfill({ json: snapshot }));
+  let retries = 0;
+  await page.route(`**/api/conversations/${id}/runs/${runId}/retry-start`, async (route) => {
+    expect(route.request().method()).toBe("POST");
+    retries++;
+    snapshot.runs[0]!.status = "running";
+    snapshot.events.push({
+      id: 2,
+      runId,
+      kind: "started",
+      message: "Working on your request.",
+      createdAt: Date.now(),
+    });
+    await route.fulfill({ json: snapshot.runs[0] });
+  });
+  await page.goto(`/?c=${id}`);
+  await expect(page.getByText("Waiting to start…", { exact: true })).toBeVisible();
+  await expect(page.getByText("Preparing your research plan…", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Retry start", exact: true }).click();
+  await expect(page.getByText("Preparing your research plan…", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry start", exact: true })).toHaveCount(0);
+  expect(retries).toBe(1);
+  expect(snapshot.runs).toHaveLength(1);
+});

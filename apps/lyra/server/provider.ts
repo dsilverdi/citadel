@@ -202,7 +202,7 @@ export async function complete(
         instructions: options.instructions,
         input: options.input,
         background: true,
-        stream: true,
+        stream: !!options.live,
         store: true,
         max_output_tokens: 8192,
         ...(options.json ? { text: { format: planResponseFormat } } : {}),

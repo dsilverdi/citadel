@@ -1,9 +1,10 @@
+import { consumeDispatchBatch } from "../server/dispatch-queue";
 import { createRequestHandler } from "react-router";
 import { routeAgentRequest } from "agents";
 import { authenticate, assertSameOrigin } from "@citadel/auth";
 import { ZodError } from "zod";
 import { and, eq, inArray, lt } from "drizzle-orm";
-import { api, dispatchRun, json } from "../server/api";
+import { api, dispatchRun, enqueueRun, json } from "../server/api";
 import { AppError, idSchema } from "../server/contracts";
 import type { Env } from "../server/env";
 import { database, ownedConversation } from "../server/repository";
@@ -68,6 +69,13 @@ export default {
       return json({ error: "The request could not be completed. Try again." }, 500);
     }
   },
+  async queue(batch: MessageBatch<unknown>, env) {
+    await consumeDispatchBatch(batch, async (runId) => {
+      const run = await database(env).select().from(runs).where(eq(runs.id, runId)).get();
+      // Deleted, cancelled, finished and expired runs must not be resurrected.
+      if (run?.status === "queued" && run.deadline > Date.now()) await dispatchRun(env, runId);
+    });
+  },
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(
       (async () => {
@@ -82,7 +90,7 @@ export default {
         for (const run of queued) {
           if (run.deadline > Date.now()) {
             try {
-              await dispatchRun(env, run.id);
+              await enqueueRun(env, run.id);
             } catch {
               /* Next cron retries dispatch. */
             }
