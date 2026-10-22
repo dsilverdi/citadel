@@ -192,3 +192,23 @@ cancellation, web search, deletion, mobile tables, and PWA behavior. This change
 bindings were changed, and no new live AI requests or production deployment were
 performed. Provision `lyra-production-dispatch` before release, as documented in
 deployment instructions and the repository deployment skill.
+
+## Preserve table horizontal scroll — 2026-10-21
+
+Committed and pushed the completed queue-backed dispatch architecture and prior
+research submission fix as `4e9f1a0` before investigating this issue.
+
+Reproduced horizontal table scroll resetting from 100px to 0px when typing a draft.
+Markdown's inline component functions changed identity on every parent render,
+causing React to replace the table scroll container. Moved the link/table renderers
+to stable module-level components so draft edits and five-second snapshots retain
+the DOM and its scroll position. A second regression found during validation was
+live assistant text being applied to the user message sharing the run ID, briefly
+removing its table; live text now applies only to assistant messages.
+
+The desktop/mobile table regression passed. On mobile it verifies a 100px horizontal
+position remains unchanged after typing and two subsequent conversation snapshot
+responses, in addition to checking readable overflow within the page. The original
+renderer failed this regression. Full `pnpm check` validation covers formatting,
+lint, workspace types, unit tests and builds. No deployment or further commit/push
+was performed for the table fix.

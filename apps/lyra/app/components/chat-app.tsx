@@ -585,7 +585,12 @@ export function ChatApp({ initial }: { initial: Initial }) {
                 {current.messages.map((message) => {
                   const run = current.runs.find((item) => item.id === message.runId);
                   const text =
-                    live?.runId === message.runId && run && busy(run) ? live.text : message.content;
+                    message.role === "assistant" &&
+                    live?.runId === message.runId &&
+                    run &&
+                    busy(run)
+                      ? live.text
+                      : message.content;
                   return (
                     <article
                       key={message.id}

@@ -308,6 +308,17 @@ test("wide tables scroll within the message on mobile", async ({ page, isMobile 
     expect(sizes.content).toBeGreaterThan(sizes.width);
     expect(sizes.offset).toBeGreaterThan(0);
     expect(sizes.pageWidth).toBeLessThanOrEqual(sizes.viewport);
+    await page.getByRole("textbox", { name: "Message Lyra" }).fill("A follow-up question");
+    expect(await region.evaluate((element) => element.scrollLeft)).toBe(sizes.offset);
+    const conversationId = new URL(page.url()).searchParams.get("c")!;
+    for (let poll = 0; poll < 2; poll++) {
+      await page.waitForResponse(
+        (response) =>
+          response.request().method() === "GET" &&
+          new URL(response.url()).pathname === `/api/conversations/${conversationId}`,
+      );
+    }
+    expect(await region.evaluate((element) => element.scrollLeft)).toBe(sizes.offset);
   }
 });
 
