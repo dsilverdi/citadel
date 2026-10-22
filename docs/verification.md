@@ -212,3 +212,27 @@ responses, in addition to checking readable overflow within the page. The origin
 renderer failed this regression. Full `pnpm check` validation covers formatting,
 lint, workspace types, unit tests and builds. No deployment or further commit/push
 was performed for the table fix.
+
+## Queue dispatch and table scroll production release — 2026-10-22
+
+Committed table-scroll preservation and the assistant-only live-text fix as
+`071c920`, then published Worker version `e2f1f248-b111-43ba-a4cd-9692dde31ae8`
+at https://lyra.dsilverdi.workers.dev. This release also activates the previously
+committed queue-backed startup architecture (`4e9f1a0`).
+
+`pnpm check` passed, including formatting, lint, all workspace typechecks, 59 unit
+tests and builds. Six desktop/mobile browser checks passed for research approval
+and reconnect, table horizontal scroll persistence across draft edits and snapshot
+refreshes, and queued startup retry. Browser AI responses were local samples.
+
+Inspected existing queues before creating the missing `lyra-production-dispatch`
+queue (ID `30fc64c7a5ae4e9abf253b0a69be8343`). Post-deployment verification confirms
+one producer and one consumer. No database migrations were pending; both required
+runtime secret names were present. A separate production build was checked against
+source Queue/Workflow, storage, asset, Access/Gateway and cron bindings, with local
+auth bypass and mock AI absent. Wrangler confirmed the production Workflow and
+five-minute cron along with the queue producer and consumer.
+
+HTTPS returned HTTP 302 to `dsilverdi.cloudflareaccess.com`. Signed-in live startup
+and phone table-scroll behavior remain a user smoke test. No live AI requests were
+made or existing runs restarted during release verification.
